@@ -23,7 +23,8 @@ setup(
         ],
     },
     entry_points={
-        'console_scripts': [
-        ],
-    },
+    'console_scripts': [
+        'target_node = drone_interceptor.target_node:main',
+    ],
+},
 )
