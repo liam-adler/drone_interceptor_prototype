@@ -7,47 +7,43 @@ from typing import Optional
 
 import numpy as np
 import rclpy
-from geometry_msgs.msg import TransformStamped, Vector3
+from geometry_msgs.msg import Point, TransformStamped, Vector3
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
-from std_msgs.msg import ColorRGBA, Float32
+from std_msgs.msg import ColorRGBA
 from tf2_ros import TransformBroadcaster
 from visualization_msgs.msg import Marker
-from geometry_msgs.msg import Point
-
 
 from drone_interceptor.dynamics import PointMassState, SimplePointMassDynamics
 
 
-class TargetDynamicsNode(Node):
+class InterceptorDynamicsNode(Node):
     """
-    Simulates the target drone as a simple acceleration-limited point mass.
+    Simulates the interceptor drone as a simple acceleration-limited point mass.
 
     Subscribes:
-        /target/cmd_vel          geometry_msgs/Vector3
-        /target/desired_heading  geometry_msgs/Vector3
-        /target/desired_speed    std_msgs/Float32
+        /interceptor/cmd_vel          geometry_msgs/Vector3
 
     Publishes:
-        /target/state            nav_msgs/Odometry
-        /target/marker           visualization_msgs/Marker
-        /target/path_marker      visualization_msgs/Marker
+        /interceptor/state            nav_msgs/Odometry
+        /interceptor/marker           visualization_msgs/Marker
+        /interceptor/path_marker      visualization_msgs/Marker
     """
 
     def __init__(self) -> None:
-        super().__init__("target_dynamics_node")
+        super().__init__("interceptor_dynamics_node")
 
         # Parameters
         self.declare_parameter("frame_id", "world")
-        self.declare_parameter("child_frame_id", "target")
+        self.declare_parameter("child_frame_id", "interceptor")
         self.declare_parameter("update_rate_hz", 50.0)
 
-        self.declare_parameter("initial_x", 0.0)
+        self.declare_parameter("initial_x", -8.0)
         self.declare_parameter("initial_y", 0.0)
         self.declare_parameter("initial_z", 2.0)
 
-        self.declare_parameter("max_speed", 2.0)
-        self.declare_parameter("max_accel", 1.5)
+        self.declare_parameter("max_speed", 4.0)
+        self.declare_parameter("max_accel", 3.0)
         self.declare_parameter("min_z", 0.3)
         self.declare_parameter("max_z", 20.0)
 
@@ -74,8 +70,6 @@ class TargetDynamicsNode(Node):
         )
 
         self.velocity_command = np.zeros(3, dtype=float)
-        self.desired_heading = np.array([1.0, 0.0, 0.0], dtype=float)
-        self.desired_speed = 0.0
 
         self.dynamics = SimplePointMassDynamics(
             max_speed=max_speed,
@@ -89,26 +83,18 @@ class TargetDynamicsNode(Node):
         # ROS interfaces
         self.cmd_sub = self.create_subscription(
             Vector3,
-            "/target/cmd_vel",
+            "/interceptor/cmd_vel",
             self.cmd_vel_callback,
             10,
         )
-        self.heading_sub = self.create_subscription(
-            Vector3,
-            "/target/desired_heading",
-            self.desired_heading_callback,
-            10,
-        )
-        self.speed_sub = self.create_subscription(
-            Float32,
-            "/target/desired_speed",
-            self.desired_speed_callback,
-            10,
-        )
 
-        self.state_pub = self.create_publisher(Odometry, "/target/state", 10)
-        self.marker_pub = self.create_publisher(Marker, "/target/marker", 10)
-        self.path_marker_pub = self.create_publisher(Marker, "/target/path_marker", 10)
+        self.state_pub = self.create_publisher(Odometry, "/interceptor/state", 10)
+        self.marker_pub = self.create_publisher(Marker, "/interceptor/marker", 10)
+        self.path_marker_pub = self.create_publisher(
+            Marker,
+            "/interceptor/path_marker",
+            10,
+        )
 
         self.tf_broadcaster = TransformBroadcaster(self)
 
@@ -117,27 +103,10 @@ class TargetDynamicsNode(Node):
         timer_period = 1.0 / self.update_rate_hz
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
-        self.get_logger().info("Target dynamics node started")
+        self.get_logger().info("Interceptor dynamics node started")
 
     def cmd_vel_callback(self, msg: Vector3) -> None:
         self.velocity_command = np.array([msg.x, msg.y, msg.z], dtype=float)
-
-    def desired_heading_callback(self, msg: Vector3) -> None:
-        heading = np.array([msg.x, msg.y, msg.z], dtype=float)
-        norm = float(np.linalg.norm(heading))
-
-        if norm < 1e-9:
-            return
-
-        self.desired_heading = heading / norm
-        self.update_velocity_command_from_behavior()
-
-    def desired_speed_callback(self, msg: Float32) -> None:
-        self.desired_speed = max(0.0, float(msg.data))
-        self.update_velocity_command_from_behavior()
-
-    def update_velocity_command_from_behavior(self) -> None:
-        self.velocity_command = self.desired_heading * self.desired_speed
 
     def timer_callback(self) -> None:
         now = self.get_clock().now()
@@ -234,7 +203,7 @@ class TargetDynamicsNode(Node):
         marker.header.stamp = now.to_msg()
         marker.header.frame_id = self.frame_id
 
-        marker.ns = "target"
+        marker.ns = "interceptor"
         marker.id = 0
         marker.type = Marker.SPHERE
         marker.action = Marker.ADD
@@ -253,9 +222,9 @@ class TargetDynamicsNode(Node):
         marker.scale.z = 0.45
 
         marker.color = ColorRGBA()
-        marker.color.r = 1.0
-        marker.color.g = 0.2
-        marker.color.b = 0.2
+        marker.color.r = 0.1
+        marker.color.g = 0.4
+        marker.color.b = 1.0
         marker.color.a = 1.0
 
         self.marker_pub.publish(marker)
@@ -270,7 +239,7 @@ class TargetDynamicsNode(Node):
         marker.header.stamp = now.to_msg()
         marker.header.frame_id = self.frame_id
 
-        marker.ns = "target_path"
+        marker.ns = "interceptor_path"
         marker.id = 0
         marker.type = Marker.LINE_STRIP
         marker.action = Marker.ADD
@@ -278,13 +247,12 @@ class TargetDynamicsNode(Node):
         marker.scale.x = 0.05
 
         marker.color = ColorRGBA()
-        marker.color.r = 1.0
-        marker.color.g = 0.2
-        marker.color.b = 0.2
+        marker.color.r = 0.1
+        marker.color.g = 0.4
+        marker.color.b = 1.0
         marker.color.a = 1.0
 
         for point in self.path_points:
-
             marker_point = Point()
             marker_point.x = float(point[0])
             marker_point.y = float(point[1])
@@ -311,7 +279,7 @@ class TargetDynamicsNode(Node):
 def main(args=None) -> None:
     rclpy.init(args=args)
 
-    node = TargetDynamicsNode()
+    node = InterceptorDynamicsNode()
 
     try:
         rclpy.spin(node)
