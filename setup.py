@@ -32,7 +32,12 @@ setup(
         "target_dynamics_node = drone_interceptor.target_dynamics_node:main",
         "interceptor_dynamics_node = drone_interceptor.interceptor_dynamics_node:main",
         "interceptor_guidance_node = drone_interceptor.interceptor_guidance_node:main",
+        "interceptor_mpc_node = drone_interceptor.interceptor_mpc_node:main",
+        "interceptor_mpc_dynamics_node = drone_interceptor.interceptor_mpc_dynamics_node:main",
         "distance_monitor_node = drone_interceptor.distance_monitor_node:main",
+        "results_logger_node = drone_interceptor.results_logger_node:main",
+        "compare_results = drone_interceptor.compare_results:main",
+        "linkedin_figure = drone_interceptor.linkedin_figure:main",
     ],
 },
 )

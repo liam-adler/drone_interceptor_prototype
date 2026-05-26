@@ -19,6 +19,8 @@ class TargetBehaviorNode(Node):
         self.declare_parameter("escape_speed_min", 0.9)
         self.declare_parameter("heading_update_period", 4.0)
         self.declare_parameter("speed_update_period", 0.2)
+        self.declare_parameter("interceptor_state_topic", "/interceptor/state")
+        self.declare_parameter("random_seed", 0)
 
         self.min_speed = float(self.get_parameter("min_speed").value)
         self.max_speed = float(self.get_parameter("max_speed").value)
@@ -35,11 +37,16 @@ class TargetBehaviorNode(Node):
         speed_update_period = float(
             self.get_parameter("speed_update_period").value
         )
+        interceptor_state_topic = str(
+            self.get_parameter("interceptor_state_topic").value
+        )
+        random_seed = int(self.get_parameter("random_seed").value)
 
         self.current_heading = np.array([1.0, 0.0, 0.0], dtype=float)
         self.current_cruise_speed = self.min_speed
         self.target_position: Optional[np.ndarray] = None
         self.interceptor_position: Optional[np.ndarray] = None
+        self.rng = np.random.default_rng(random_seed)
 
         self.publisher_ = self.create_publisher(
             Vector3,
@@ -62,7 +69,7 @@ class TargetBehaviorNode(Node):
 
         self.interceptor_state_sub = self.create_subscription(
             Odometry,
-            "/interceptor/state",
+            interceptor_state_topic,
             self.interceptor_state_callback,
             10,
         )
@@ -84,9 +91,9 @@ class TargetBehaviorNode(Node):
 
     def heading_timer_callback(self):
         direction = np.array([
-            np.random.uniform(-1.0, 1.0),
-            np.random.uniform(-1.0, 1.0),
-            np.random.uniform(-0.2, 0.2),
+            self.rng.uniform(-1.0, 1.0),
+            self.rng.uniform(-1.0, 1.0),
+            self.rng.uniform(-0.2, 0.2),
         ])
 
         norm = float(np.linalg.norm(direction))
@@ -96,7 +103,7 @@ class TargetBehaviorNode(Node):
 
         self.current_heading = direction / norm
         self.current_cruise_speed = float(
-            np.random.uniform(self.min_speed, self.max_speed)
+            self.rng.uniform(self.min_speed, self.max_speed)
         )
         self.publish_heading()
 

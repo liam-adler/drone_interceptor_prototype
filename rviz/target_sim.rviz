@@ -97,6 +97,66 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /interceptor/path_marker
       Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: MPC Interceptor
+      Namespaces:
+        interceptor_mpc: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /interceptor_mpc/marker
+      Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: MPC Path
+      Namespaces:
+        interceptor_mpc_path: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /interceptor_mpc/path_marker
+      Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: MPC Intercept Point
+      Namespaces:
+        interceptor_mpc_intercept_point: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /interceptor_mpc/intercept_marker
+      Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: MPC Predicted Path
+      Namespaces:
+        interceptor_mpc_prediction: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /interceptor_mpc/predicted_path_marker
+      Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: Target Prediction
+      Namespaces:
+        target_prediction: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /interceptor_mpc/target_prediction_marker
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48

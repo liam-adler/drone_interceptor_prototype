@@ -15,24 +15,34 @@ class DistanceMonitorNode(Node):
     def __init__(self) -> None:
         super().__init__("distance_monitor_node")
 
+        self.declare_parameter("target_state_topic", "/target/state")
+        self.declare_parameter("interceptor_state_topic", "/interceptor/state")
+        self.declare_parameter("distance_topic", "/intercept/distance")
+
+        target_state_topic = str(self.get_parameter("target_state_topic").value)
+        interceptor_state_topic = str(
+            self.get_parameter("interceptor_state_topic").value
+        )
+        distance_topic = str(self.get_parameter("distance_topic").value)
+
         self.target_position: Optional[np.ndarray] = None
         self.interceptor_position: Optional[np.ndarray] = None
 
         self.target_sub = self.create_subscription(
             Odometry,
-            "/target/state",
+            target_state_topic,
             self.target_callback,
             10,
         )
         self.interceptor_sub = self.create_subscription(
             Odometry,
-            "/interceptor/state",
+            interceptor_state_topic,
             self.interceptor_callback,
             10,
         )
         self.distance_pub = self.create_publisher(
             Float32,
-            "/intercept/distance",
+            distance_topic,
             10,
         )
 
