@@ -142,7 +142,7 @@ Visualization Manager:
         Z: 2
       Name: Current View
       Pitch: 0.75
-      Target Frame: <Fixed Frame>
+      Target Frame: interceptor
       Value: Orbit (rviz_default_plugins)
       Yaw: 0.7
 Window Geometry:
