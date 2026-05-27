@@ -49,9 +49,79 @@ def _parse_bool(value: str) -> bool:
     return value.lower() in {"1", "true", "yes", "on"}
 
 
+def _make_node(executable: str, name: str, parameters: dict | None = None) -> Node:
+    return Node(
+        package="drone_interceptor",
+        executable=executable,
+        name=name,
+        output="screen",
+        parameters=[parameters or {}],
+    )
+
+
+def _make_dynamics_node(
+    *,
+    executable: str,
+    name: str,
+    initial_x: float,
+    max_speed: float,
+    max_accel: float,
+) -> Node:
+    return _make_node(
+        executable=executable,
+        name=name,
+        parameters={
+            "initial_x": initial_x,
+            "initial_y": 0.0,
+            "initial_z": 2.0,
+            "max_speed": max_speed,
+            "max_accel": max_accel,
+        },
+    )
+
+
+def _make_distance_monitor_node(interceptor_state_topic: str) -> Node:
+    return _make_node(
+        executable="distance_monitor_node",
+        name="distance_monitor_node",
+        parameters={
+            "target_state_topic": "/target/state",
+            "interceptor_state_topic": interceptor_state_topic,
+            "distance_topic": "/intercept/distance",
+        },
+    )
+
+
+def _make_results_logger_node(
+    *,
+    controller_label: str,
+    output_dir: str,
+    run_label: str,
+    profile_name: str,
+    controller_mode: str,
+    threat_response: bool,
+    spawn_distance: float,
+    random_seed: int,
+) -> Node:
+    return _make_node(
+        executable="results_logger_node",
+        name="results_logger_node",
+        parameters={
+            "distance_topic": "/intercept/distance",
+            "controller_label": controller_label,
+            "output_dir": output_dir,
+            "run_label": run_label,
+            "profile_name": profile_name,
+            "controller_mode": controller_mode,
+            "threat_response": threat_response,
+            "spawn_distance": spawn_distance,
+            "random_seed": random_seed,
+        },
+    )
+
+
 def _build_nodes(context):
     package_share = get_package_share_directory("drone_interceptor")
-    rviz_config = os.path.join(package_share, "rviz", "target_sim.rviz")
 
     profile_name = LaunchConfiguration("profile").perform(context)
     if profile_name not in PROFILES:
@@ -90,27 +160,23 @@ def _build_nodes(context):
         if controller_mode == "baseline"
         else "/interceptor_mpc/state"
     )
+    rviz_config_name = (
+        "target_sim.rviz" if controller_mode == "baseline" else "target_sim_mpc.rviz"
+    )
+    rviz_config = os.path.join(package_share, "rviz", rviz_config_name)
 
     nodes = [
-        Node(
-            package="drone_interceptor",
+        _make_dynamics_node(
             executable="target_dynamics_node",
             name="target_dynamics_node",
-            output="screen",
-            parameters=[{
-                "initial_x": 0.0,
-                "initial_y": 0.0,
-                "initial_z": 2.0,
-                "max_speed": profile["target_max_speed"],
-                "max_accel": profile["target_max_accel"],
-            }],
+            initial_x=0.0,
+            max_speed=profile["target_max_speed"],
+            max_accel=profile["target_max_accel"],
         ),
-        Node(
-            package="drone_interceptor",
+        _make_node(
             executable="target_behavior_node",
             name="target_behavior_node",
-            output="screen",
-            parameters=[{
+            parameters={
                 "min_speed": profile["target_min_speed"],
                 "max_speed": profile["target_max_speed"],
                 "enable_threat_response": threat_response,
@@ -118,115 +184,65 @@ def _build_nodes(context):
                 "escape_speed_min": 0.9,
                 "interceptor_state_topic": interceptor_state_topic,
                 "random_seed": random_seed,
-            }],
+            },
         ),
     ]
 
     if controller_mode == "baseline":
         nodes.extend([
-            Node(
-                package="drone_interceptor",
+            _make_dynamics_node(
                 executable="interceptor_dynamics_node",
                 name="interceptor_dynamics_node",
-                output="screen",
-                parameters=[{
-                    "initial_x": -spawn_distance,
-                    "initial_y": 0.0,
-                    "initial_z": 2.0,
-                    "max_speed": profile["interceptor_max_speed"],
-                    "max_accel": profile["interceptor_max_accel"],
-                }],
+                initial_x=-spawn_distance,
+                max_speed=profile["interceptor_max_speed"],
+                max_accel=profile["interceptor_max_accel"],
             ),
-            Node(
-                package="drone_interceptor",
+            _make_node(
                 executable="interceptor_guidance_node",
                 name="interceptor_guidance_node",
-                output="screen",
-                parameters=[{
+                parameters={
                     "interceptor_speed": profile["interceptor_max_speed"],
-                }],
+                },
             ),
-            Node(
-                package="drone_interceptor",
-                executable="distance_monitor_node",
-                name="distance_monitor_node",
-                output="screen",
-                parameters=[{
-                    "target_state_topic": "/target/state",
-                    "interceptor_state_topic": "/interceptor/state",
-                    "distance_topic": "/intercept/distance",
-                }],
-            ),
-            Node(
-                package="drone_interceptor",
-                executable="results_logger_node",
-                name="results_logger_node",
-                output="screen",
-                parameters=[{
-                    "distance_topic": "/intercept/distance",
-                    "controller_label": "baseline",
-                    "output_dir": output_dir,
-                    "run_label": run_label,
-                    "profile_name": profile_name,
-                    "controller_mode": controller_mode,
-                    "threat_response": threat_response,
-                    "spawn_distance": spawn_distance,
-                    "random_seed": random_seed,
-                }],
+            _make_distance_monitor_node("/interceptor/state"),
+            _make_results_logger_node(
+                controller_label="baseline",
+                output_dir=output_dir,
+                run_label=run_label,
+                profile_name=profile_name,
+                controller_mode=controller_mode,
+                threat_response=threat_response,
+                spawn_distance=spawn_distance,
+                random_seed=random_seed,
             ),
         ])
     else:
         nodes.extend([
-            Node(
-                package="drone_interceptor",
+            _make_dynamics_node(
                 executable="interceptor_mpc_dynamics_node",
                 name="interceptor_mpc_dynamics_node",
-                output="screen",
-                parameters=[{
-                    "initial_x": -spawn_distance,
-                    "initial_y": 0.0,
-                    "initial_z": 2.0,
-                    "max_speed": profile["interceptor_max_speed"],
-                    "max_accel": profile["interceptor_max_accel"],
-                }],
+                initial_x=-spawn_distance,
+                max_speed=profile["interceptor_max_speed"],
+                max_accel=profile["interceptor_max_accel"],
             ),
-            Node(
-                package="drone_interceptor",
+            _make_node(
                 executable="interceptor_mpc_node",
                 name="interceptor_mpc_node",
-                output="screen",
-                parameters=[{
+                parameters={
                     "max_speed": profile["interceptor_max_speed"],
                     "max_accel": profile["interceptor_max_accel"],
-                }],
+                },
             ),
-            Node(
-                package="drone_interceptor",
-                executable="distance_monitor_node",
-                name="distance_monitor_node",
-                output="screen",
-                parameters=[{
-                    "target_state_topic": "/target/state",
-                    "interceptor_state_topic": "/interceptor_mpc/state",
-                    "distance_topic": "/intercept/distance",
-                }],
-            ),
-            Node(
-                package="drone_interceptor",
-                executable="results_logger_node",
-                name="results_logger_node",
-                output="screen",
-                parameters=[{
-                    "distance_topic": "/intercept/distance",
-                    "controller_label": "mpc",
-                    "output_dir": output_dir,
-                    "run_label": run_label,
-                    "profile_name": profile_name,
-                    "controller_mode": controller_mode,
-                    "threat_response": threat_response,
-                    "spawn_distance": spawn_distance,
-                    "random_seed": random_seed,
-                }],
+            _make_distance_monitor_node("/interceptor_mpc/state"),
+            _make_results_logger_node(
+                controller_label="mpc",
+                output_dir=output_dir,
+                run_label=run_label,
+                profile_name=profile_name,
+                controller_mode=controller_mode,
+                threat_response=threat_response,
+                spawn_distance=spawn_distance,
+                random_seed=random_seed,
             ),
         ])
 

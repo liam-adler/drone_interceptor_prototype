@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 import rclpy
-from geometry_msgs.msg import Point, Vector3
-from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Vector3
 from rclpy.node import Node
-from std_msgs.msg import ColorRGBA
-from visualization_msgs.msg import Marker
+
+from drone_interceptor.interceptor_controller_base import (
+    InterceptorControllerBase,
+    NORM_TOLERANCE,
+)
 
 
-class InterceptorGuidanceNode(Node):
+class InterceptorGuidanceNode(InterceptorControllerBase):
     """
     Guidance controller for the interceptor drone.
 
@@ -34,9 +34,8 @@ class InterceptorGuidanceNode(Node):
     """
 
     def __init__(self) -> None:
-        super().__init__("interceptor_guidance_node")
+        Node.__init__(self, "interceptor_guidance_node")
 
-        # Parameters
         self.declare_parameter("frame_id", "world")
         self.declare_parameter("update_rate_hz", 30.0)
 
@@ -47,32 +46,23 @@ class InterceptorGuidanceNode(Node):
         self.declare_parameter("max_prediction_time", 8.0)
         self.declare_parameter("min_prediction_time", 0.1)
 
-        self.frame_id = str(self.get_parameter("frame_id").value)
-        self.update_rate_hz = float(self.get_parameter("update_rate_hz").value)
+        self.frame_id = self.get_string_parameter("frame_id")
+        self.update_rate_hz = self.get_float_parameter("update_rate_hz")
 
-        self.mode = str(self.get_parameter("mode").value)
-        self.interceptor_speed = float(self.get_parameter("interceptor_speed").value)
-        self.capture_radius = float(self.get_parameter("capture_radius").value)
+        self.mode = self.get_string_parameter("mode")
+        self.interceptor_speed = self.get_float_parameter("interceptor_speed")
+        self.capture_radius = self.get_float_parameter("capture_radius")
 
-        self.max_prediction_time = float(self.get_parameter("max_prediction_time").value)
-        self.min_prediction_time = float(self.get_parameter("min_prediction_time").value)
+        self.max_prediction_time = self.get_float_parameter("max_prediction_time")
+        self.min_prediction_time = self.get_float_parameter("min_prediction_time")
 
-        self.target_state: Optional[Odometry] = None
-        self.interceptor_state: Optional[Odometry] = None
-
-        # ROS interfaces
-        self.target_sub = self.create_subscription(
-            Odometry,
-            "/target/state",
-            self.target_callback,
-            10,
-        )
-
-        self.interceptor_sub = self.create_subscription(
-            Odometry,
-            "/interceptor/state",
-            self.interceptor_callback,
-            10,
+        self.setup_controller_interfaces(
+            interceptor_state_topic="/interceptor/state",
+            intercept_marker_topic="/intercept/marker",
+            intercept_marker_namespace="intercept_point",
+            update_rate_hz=self.update_rate_hz,
+            frame_id=self.frame_id,
+            capture_radius=self.capture_radius,
         )
 
         self.cmd_pub = self.create_publisher(
@@ -81,36 +71,19 @@ class InterceptorGuidanceNode(Node):
             10,
         )
 
-        self.marker_pub = self.create_publisher(
-            Marker,
-            "/intercept/marker",
-            10,
-        )
-
-        timer_period = 1.0 / self.update_rate_hz
-        self.timer = self.create_timer(timer_period, self.timer_callback)
-
         self.get_logger().info(
             f"Interceptor guidance node started in mode='{self.mode}'"
         )
 
-    def target_callback(self, msg: Odometry) -> None:
-        self.target_state = msg
-
-    def interceptor_callback(self, msg: Odometry) -> None:
-        self.interceptor_state = msg
-
-    def timer_callback(self) -> None:
-        if self.target_state is None or self.interceptor_state is None:
-            self.publish_zero_command()
-            return
-
-        target_position = self.extract_position(self.target_state)
-        target_velocity = self.extract_velocity(self.target_state)
-
-        interceptor_position = self.extract_position(self.interceptor_state)
-        interceptor_velocity = self.extract_velocity(self.interceptor_state)
-
+    def control_step(
+        self,
+        *,
+        target_position: np.ndarray,
+        target_velocity: np.ndarray,
+        interceptor_position: np.ndarray,
+        interceptor_velocity: np.ndarray,
+    ) -> None:
+        del interceptor_velocity
         relative_position = target_position - interceptor_position
         distance = float(np.linalg.norm(relative_position))
 
@@ -119,17 +92,15 @@ class InterceptorGuidanceNode(Node):
                 target_velocity,
                 self.interceptor_speed,
             )
-
-            cmd_msg = Vector3()
-            cmd_msg.x = float(follow_velocity[0])
-            cmd_msg.y = float(follow_velocity[1])
-            cmd_msg.z = float(follow_velocity[2])
-
-            self.cmd_pub.publish(cmd_msg)
+            self.cmd_pub.publish(self.to_vector3(follow_velocity))
 
             self.publish_intercept_marker(
                 position=target_position,
                 captured=True,
+                active_scale=0.35,
+                captured_scale=0.8,
+                active_color=(1.0, 1.0, 0.1, 1.0),
+                captured_color=(0.1, 1.0, 0.1, 1.0),
             )
             return
 
@@ -153,7 +124,7 @@ class InterceptorGuidanceNode(Node):
         command_direction = aim_point - interceptor_position
         command_norm = float(np.linalg.norm(command_direction))
 
-        if command_norm < 1e-9:
+        if command_norm < NORM_TOLERANCE:
             self.publish_zero_command()
             return
 
@@ -161,13 +132,15 @@ class InterceptorGuidanceNode(Node):
             command_direction / command_norm * self.interceptor_speed
         )
 
-        cmd_msg = Vector3()
-        cmd_msg.x = float(command_velocity[0])
-        cmd_msg.y = float(command_velocity[1])
-        cmd_msg.z = float(command_velocity[2])
-
-        self.cmd_pub.publish(cmd_msg)
-        self.publish_intercept_marker(position=aim_point, captured=False)
+        self.cmd_pub.publish(self.to_vector3(command_velocity))
+        self.publish_intercept_marker(
+            position=aim_point,
+            captured=False,
+            active_scale=0.35,
+            captured_scale=0.8,
+            active_color=(1.0, 1.0, 0.1, 1.0),
+            captured_color=(0.1, 1.0, 0.1, 1.0),
+        )
 
     def compute_lead_pursuit_aim_point(
         self,
@@ -196,8 +169,8 @@ class InterceptorGuidanceNode(Node):
 
         candidate_times: list[float] = []
 
-        if abs(a) < 1e-9:
-            if abs(b) > 1e-9:
+        if abs(a) < NORM_TOLERANCE:
+            if abs(b) > NORM_TOLERANCE:
                 t = -c / b
                 if t > 0.0:
                     candidate_times.append(t)
@@ -232,84 +205,15 @@ class InterceptorGuidanceNode(Node):
 
         return target_position + target_velocity * t_go
 
-    def publish_zero_command(self) -> None:
-        msg = Vector3()
-        msg.x = 0.0
-        msg.y = 0.0
-        msg.z = 0.0
-        self.cmd_pub.publish(msg)
+    def publish_command(self, vector: np.ndarray) -> None:
+        self.cmd_pub.publish(self.to_vector3(vector))
 
-    def publish_intercept_marker(
-        self,
-        position: np.ndarray,
-        captured: bool,
-    ) -> None:
-        marker = Marker()
-        marker.header.stamp = self.get_clock().now().to_msg()
-        marker.header.frame_id = self.frame_id
+    def get_float_parameter(self, name: str) -> float:
+        return float(self.get_parameter(name).value)
 
-        marker.ns = "intercept_point"
-        marker.id = 0
-        marker.type = Marker.SPHERE
-        marker.action = Marker.ADD
+    def get_string_parameter(self, name: str) -> str:
+        return str(self.get_parameter(name).value)
 
-        marker.pose.position.x = float(position[0])
-        marker.pose.position.y = float(position[1])
-        marker.pose.position.z = float(position[2])
-        marker.pose.orientation.w = 1.0
-
-        marker.scale.x = 0.35 if not captured else 0.8
-        marker.scale.y = 0.35 if not captured else 0.8
-        marker.scale.z = 0.35 if not captured else 0.8
-
-        marker.color = ColorRGBA()
-
-        if captured:
-            marker.color.r = 0.1
-            marker.color.g = 1.0
-            marker.color.b = 0.1
-            marker.color.a = 1.0
-        else:
-            marker.color.r = 1.0
-            marker.color.g = 1.0
-            marker.color.b = 0.1
-            marker.color.a = 1.0
-
-        self.marker_pub.publish(marker)
-
-    @staticmethod
-    def extract_position(msg: Odometry) -> np.ndarray:
-        return np.array(
-            [
-                msg.pose.pose.position.x,
-                msg.pose.pose.position.y,
-                msg.pose.pose.position.z,
-            ],
-            dtype=float,
-        )
-
-    @staticmethod
-    def extract_velocity(msg: Odometry) -> np.ndarray:
-        return np.array(
-            [
-                msg.twist.twist.linear.x,
-                msg.twist.twist.linear.y,
-                msg.twist.twist.linear.z,
-            ],
-            dtype=float,
-        )
-
-    @staticmethod
-    def limit_vector(vector: np.ndarray, max_norm: float) -> np.ndarray:
-        norm = float(np.linalg.norm(vector))
-
-        if norm < 1e-9:
-            return np.zeros(3, dtype=float)
-
-        if norm <= max_norm:
-            return vector.copy()
-
-        return vector / norm * max_norm
 
 def main(args=None) -> None:
     rclpy.init(args=args)

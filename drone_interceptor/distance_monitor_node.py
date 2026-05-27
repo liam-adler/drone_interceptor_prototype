@@ -19,22 +19,22 @@ class DistanceMonitorNode(Node):
         self.declare_parameter("interceptor_state_topic", "/interceptor/state")
         self.declare_parameter("distance_topic", "/intercept/distance")
 
-        target_state_topic = str(self.get_parameter("target_state_topic").value)
-        interceptor_state_topic = str(
-            self.get_parameter("interceptor_state_topic").value
+        target_state_topic = self.get_string_parameter("target_state_topic")
+        interceptor_state_topic = self.get_string_parameter(
+            "interceptor_state_topic"
         )
-        distance_topic = str(self.get_parameter("distance_topic").value)
+        distance_topic = self.get_string_parameter("distance_topic")
 
         self.target_position: Optional[np.ndarray] = None
         self.interceptor_position: Optional[np.ndarray] = None
 
-        self.target_sub = self.create_subscription(
+        self.create_subscription(
             Odometry,
             target_state_topic,
             self.target_callback,
             10,
         )
-        self.interceptor_sub = self.create_subscription(
+        self.create_subscription(
             Odometry,
             interceptor_state_topic,
             self.interceptor_callback,
@@ -58,13 +58,17 @@ class DistanceMonitorNode(Node):
         if self.target_position is None or self.interceptor_position is None:
             return
 
-        distance = float(
-            np.linalg.norm(self.target_position - self.interceptor_position)
-        )
-
         msg = Float32()
-        msg.data = distance
+        msg.data = self.compute_distance()
         self.distance_pub.publish(msg)
+
+    def compute_distance(self) -> float:
+        assert self.target_position is not None
+        assert self.interceptor_position is not None
+        return float(np.linalg.norm(self.target_position - self.interceptor_position))
+
+    def get_string_parameter(self, name: str) -> str:
+        return str(self.get_parameter(name).value)
 
     @staticmethod
     def extract_position(msg: Odometry) -> np.ndarray:

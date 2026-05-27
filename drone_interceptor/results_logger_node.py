@@ -39,12 +39,12 @@ class ResultsLoggerNode(Node):
         self.declare_parameter("spawn_distance", 0.0)
         self.declare_parameter("random_seed", 0)
 
-        distance_topic = str(self.get_parameter("distance_topic").value)
-        self.controller_label = str(self.get_parameter("controller_label").value)
-        self.capture_radius = float(self.get_parameter("capture_radius").value)
-        report_period = float(self.get_parameter("report_period").value)
-        self.output_dir = Path(str(self.get_parameter("output_dir").value)).expanduser()
-        self.run_label = str(self.get_parameter("run_label").value)
+        distance_topic = self.get_string_parameter("distance_topic")
+        self.controller_label = self.get_string_parameter("controller_label")
+        self.capture_radius = self.get_float_parameter("capture_radius")
+        report_period = self.get_float_parameter("report_period")
+        self.output_dir = Path(self.get_string_parameter("output_dir")).expanduser()
+        self.run_label = self.get_string_parameter("run_label")
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         self.first_sample_time: Optional[float] = None
@@ -57,7 +57,7 @@ class ResultsLoggerNode(Node):
         self.sample_count = 0
         self.samples: list[tuple[float, float]] = []
 
-        self.distance_sub = self.create_subscription(
+        self.create_subscription(
             Float32,
             distance_topic,
             self.distance_callback,
@@ -102,7 +102,7 @@ class ResultsLoggerNode(Node):
         if self.first_sample_time is None or self.last_distance is None:
             return
 
-        elapsed = self.last_sample_time - self.first_sample_time
+        elapsed = self.compute_elapsed_time()
         capture_text = (
             f"{self.capture_time:.2f} s" if self.capture_time is not None else "not yet"
         )
@@ -118,9 +118,7 @@ class ResultsLoggerNode(Node):
             return
 
         self.summary_logged = True
-        elapsed = 0.0
-        if self.last_sample_time is not None:
-            elapsed = self.last_sample_time - self.first_sample_time
+        elapsed = self.compute_elapsed_time()
 
         capture_status = (
             f"yes ({self.capture_time:.2f} s)"
@@ -128,7 +126,9 @@ class ResultsLoggerNode(Node):
             else "no"
         )
         min_distance = self.min_distance if self.min_distance is not None else float("nan")
-        last_distance = self.last_distance if self.last_distance is not None else float("nan")
+        last_distance = (
+            self.last_distance if self.last_distance is not None else float("nan")
+        )
 
         self.get_logger().info(
             f"[{self.controller_label}] final summary: "
@@ -159,26 +159,46 @@ class ResultsLoggerNode(Node):
             writer.writerow(["time_s", "distance_m"])
             writer.writerows(self.samples)
 
-        summary = {
+        summary = self.build_summary(
+            elapsed=elapsed,
+            min_distance=min_distance,
+            last_distance=last_distance,
+        )
+        with json_path.open("w", encoding="utf-8") as json_file:
+            json.dump(summary, json_file, indent=2)
+
+        self.write_plot(png_path)
+
+        self.get_logger().info(
+            f"[{self.controller_label}] wrote artifacts: "
+            f"{csv_path}, {json_path}, {png_path}"
+        )
+
+    def build_summary(
+        self,
+        elapsed: float,
+        min_distance: float,
+        last_distance: float,
+    ) -> dict[str, object]:
+        return {
             "controller_label": self.controller_label,
-            "controller_mode": str(self.get_parameter("controller_mode").value),
-            "profile_name": str(self.get_parameter("profile_name").value),
-            "threat_response": bool(self.get_parameter("threat_response").value),
-            "spawn_distance_m": float(self.get_parameter("spawn_distance").value),
-            "random_seed": int(self.get_parameter("random_seed").value),
+            "controller_mode": self.get_string_parameter("controller_mode"),
+            "profile_name": self.get_string_parameter("profile_name"),
+            "threat_response": self.get_bool_parameter("threat_response"),
+            "spawn_distance_m": self.get_float_parameter("spawn_distance"),
+            "random_seed": self.get_int_parameter("random_seed"),
             "captured": self.capture_time is not None,
             "capture_time_s": self.capture_time,
             "min_distance_m": min_distance,
             "final_distance_m": last_distance,
             "elapsed_s": elapsed,
             "sample_count": self.sample_count,
-            "distance_topic": str(self.get_parameter("distance_topic").value),
+            "distance_topic": self.get_string_parameter("distance_topic"),
             "capture_radius_m": self.capture_radius,
             "run_label": self.run_label,
         }
-        with json_path.open("w", encoding="utf-8") as json_file:
-            json.dump(summary, json_file, indent=2)
 
+    def write_plot(self, png_path: Path) -> None:
         times = [sample[0] for sample in self.samples]
         distances = [sample[1] for sample in self.samples]
 
@@ -229,10 +249,22 @@ class ResultsLoggerNode(Node):
         fig.savefig(png_path, dpi=160)
         plt.close(fig)
 
-        self.get_logger().info(
-            f"[{self.controller_label}] wrote artifacts: "
-            f"{csv_path}, {json_path}, {png_path}"
-        )
+    def compute_elapsed_time(self) -> float:
+        if self.first_sample_time is None or self.last_sample_time is None:
+            return 0.0
+        return self.last_sample_time - self.first_sample_time
+
+    def get_bool_parameter(self, name: str) -> bool:
+        return bool(self.get_parameter(name).value)
+
+    def get_float_parameter(self, name: str) -> float:
+        return float(self.get_parameter(name).value)
+
+    def get_int_parameter(self, name: str) -> int:
+        return int(self.get_parameter(name).value)
+
+    def get_string_parameter(self, name: str) -> str:
+        return str(self.get_parameter(name).value)
 
     def destroy_node(self) -> bool:
         self.log_summary()
