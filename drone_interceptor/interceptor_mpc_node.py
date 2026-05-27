@@ -27,18 +27,21 @@ class InterceptorMpcNode(InterceptorControllerBase):
 
         self.declare_parameter("horizon_steps", 24)
         self.declare_parameter("prediction_dt", 0.12)
+        self.declare_parameter("prediction_dt_min", 0.06)
+        self.declare_parameter("prediction_dt_max", 0.18)
+        self.declare_parameter("prediction_dt_growth", 1.08)
         self.declare_parameter("solver_iterations", 48)
         self.declare_parameter("solver_step_size", 0.045)
 
-        self.declare_parameter("weight_position", 7.0)
-        self.declare_parameter("weight_relative_velocity", 0.25)
-        self.declare_parameter("weight_non_closing_rate", 10.0)
-        self.declare_parameter("weight_capture_set", 22.0)
+        self.declare_parameter("weight_position", 8.0)
+        self.declare_parameter("weight_relative_velocity", 0.35)
+        self.declare_parameter("weight_non_closing_rate", 16.0)
+        self.declare_parameter("weight_capture_set", 32.0)
         self.declare_parameter("weight_control", 0.008)
-        self.declare_parameter("weight_control_delta", 0.025)
-        self.declare_parameter("weight_terminal_position", 70.0)
-        self.declare_parameter("weight_terminal_relative_velocity", 0.6)
-        self.declare_parameter("weight_terminal_capture_set", 80.0)
+        self.declare_parameter("weight_control_delta", 0.02)
+        self.declare_parameter("weight_terminal_position", 110.0)
+        self.declare_parameter("weight_terminal_relative_velocity", 0.8)
+        self.declare_parameter("weight_terminal_capture_set", 180.0)
 
         self.frame_id = str(self.get_parameter("frame_id").value)
         self.update_rate_hz = float(self.get_parameter("update_rate_hz").value)
@@ -50,6 +53,9 @@ class InterceptorMpcNode(InterceptorControllerBase):
             config=MpcConfig(
                 horizon_steps=int(self.get_parameter("horizon_steps").value),
                 dt=float(self.get_parameter("prediction_dt").value),
+                min_dt=float(self.get_parameter("prediction_dt_min").value),
+                max_dt=float(self.get_parameter("prediction_dt_max").value),
+                dt_growth=float(self.get_parameter("prediction_dt_growth").value),
                 iterations=int(self.get_parameter("solver_iterations").value),
                 step_size=float(self.get_parameter("solver_step_size").value),
                 max_speed=self.max_speed,

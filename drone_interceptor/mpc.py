@@ -10,21 +10,24 @@ Array3 = np.ndarray
 
 @dataclass
 class MpcWeights:
-    position: float = 7.0
-    relative_velocity: float = 0.25
-    non_closing_rate: float = 10.0
-    capture_set: float = 22.0
+    position: float = 8.0
+    relative_velocity: float = 0.35
+    non_closing_rate: float = 16.0
+    capture_set: float = 32.0
     control: float = 0.008
-    control_delta: float = 0.025
-    terminal_position: float = 70.0
-    terminal_relative_velocity: float = 0.6
-    terminal_capture_set: float = 80.0
+    control_delta: float = 0.02
+    terminal_position: float = 110.0
+    terminal_relative_velocity: float = 0.8
+    terminal_capture_set: float = 180.0
 
 
 @dataclass
 class MpcConfig:
     horizon_steps: int = 24
     dt: float = 0.12
+    min_dt: float = 0.06
+    max_dt: float = 0.18
+    dt_growth: float = 1.08
     iterations: int = 48
     step_size: float = 0.045
     max_speed: float = 4.0
@@ -65,27 +68,37 @@ class AccelerationMPC:
         target_position: Array3,
         target_velocity: Array3,
     ) -> MpcSolution:
+        step_durations = self._prediction_step_durations()
         target_positions = self._predict_target_positions(
             target_position=target_position,
             target_velocity=target_velocity,
+            step_durations=step_durations,
         )
         target_velocities = [
             target_velocity.copy() for _ in range(self.config.horizon_steps)
         ]
 
-        controls = self._warm_start()
+        controls = self._warm_start(
+            interceptor_position=interceptor_position,
+            interceptor_velocity=interceptor_velocity,
+            target_positions=target_positions,
+            target_velocity=target_velocity,
+            step_durations=step_durations,
+        )
 
         for _ in range(self.config.iterations):
             states = self._rollout(
                 interceptor_position=interceptor_position,
                 interceptor_velocity=interceptor_velocity,
                 controls=controls,
+                step_durations=step_durations,
             )
             gradients = self._compute_gradients(
                 states=states,
                 controls=controls,
                 target_positions=target_positions,
                 target_velocities=target_velocities,
+                step_durations=step_durations,
             )
             controls -= self.config.step_size * gradients
             controls = self._project_controls(controls)
@@ -94,6 +107,7 @@ class AccelerationMPC:
             interceptor_position=interceptor_position,
             interceptor_velocity=interceptor_velocity,
             controls=controls,
+            step_durations=step_durations,
         )
         self._last_solution = controls.copy()
 
@@ -109,30 +123,60 @@ class AccelerationMPC:
             ),
         )
 
-    def _warm_start(self) -> np.ndarray:
-        controls = np.zeros((self.config.horizon_steps, 3), dtype=float)
-        controls[:-1] = self._last_solution[1:]
-        controls[-1] = self._last_solution[-1]
-        return controls
+    def _prediction_step_durations(self) -> np.ndarray:
+        step_durations = np.empty(self.config.horizon_steps, dtype=float)
+        dt = max(self.config.min_dt, min(self.config.dt, self.config.max_dt))
+
+        for index in range(self.config.horizon_steps):
+            step_durations[index] = dt
+            dt = min(dt * self.config.dt_growth, self.config.max_dt)
+
+        return step_durations
+
+    def _warm_start(
+        self,
+        interceptor_position: Array3,
+        interceptor_velocity: Array3,
+        target_positions: list[Array3],
+        target_velocity: Array3,
+        step_durations: np.ndarray,
+    ) -> np.ndarray:
+        shifted_controls = np.zeros((self.config.horizon_steps, 3), dtype=float)
+        shifted_controls[:-1] = self._last_solution[1:]
+        shifted_controls[-1] = self._last_solution[-1]
+
+        seeded_controls = self._lead_intercept_seed(
+            interceptor_position=interceptor_position,
+            interceptor_velocity=interceptor_velocity,
+            target_positions=target_positions,
+            target_velocity=target_velocity,
+            step_durations=step_durations,
+        )
+
+        return 0.65 * shifted_controls + 0.35 * seeded_controls
 
     def _predict_target_positions(
         self,
         target_position: Array3,
         target_velocity: Array3,
+        step_durations: np.ndarray,
     ) -> list[Array3]:
-        dt = self.config.dt
-        return [
-            target_position + target_velocity * dt * (step + 1)
-            for step in range(self.config.horizon_steps)
-        ]
+        elapsed_time = 0.0
+        predicted_positions: list[Array3] = []
+
+        for dt in step_durations:
+            elapsed_time += float(dt)
+            predicted_positions.append(target_position + target_velocity * elapsed_time)
+
+        return predicted_positions
 
     def _rollout(
         self,
         interceptor_position: Array3,
         interceptor_velocity: Array3,
         controls: np.ndarray,
+        step_durations: np.ndarray,
     ) -> list[np.ndarray]:
-        dt = self.config.dt
         states: list[np.ndarray] = [
             np.concatenate(
                 [
@@ -142,7 +186,8 @@ class AccelerationMPC:
             )
         ]
 
-        for control in controls:
+        for index, control in enumerate(controls):
+            dt = float(step_durations[index])
             previous = states[-1]
             position = previous[:3]
             velocity = previous[3:]
@@ -169,16 +214,8 @@ class AccelerationMPC:
         controls: np.ndarray,
         target_positions: list[Array3],
         target_velocities: list[Array3],
+        step_durations: np.ndarray,
     ) -> np.ndarray:
-        dt = self.config.dt
-        a_t = np.block(
-            [
-                [np.eye(3), dt * np.eye(3)],
-                [np.zeros((3, 3)), np.eye(3)],
-            ]
-        )
-        b_t = np.vstack([dt * dt * np.eye(3), dt * np.eye(3)])
-
         gradients = np.zeros_like(controls)
         lambda_next = self._terminal_cost_gradient(
             state=states[-1],
@@ -187,6 +224,15 @@ class AccelerationMPC:
         )
 
         for index in range(self.config.horizon_steps - 1, -1, -1):
+            dt = float(step_durations[index])
+            a_t = np.block(
+                [
+                    [np.eye(3), dt * np.eye(3)],
+                    [np.zeros((3, 3)), np.eye(3)],
+                ]
+            )
+            b_t = np.vstack([dt * dt * np.eye(3), dt * np.eye(3)])
+
             state = states[index + 1]
             control = controls[index]
             target_position = target_positions[index]
@@ -409,6 +455,51 @@ class AccelerationMPC:
         for index, control in enumerate(controls):
             projected[index] = self._limit_norm(control, self.config.max_accel)
         return projected
+
+    def _lead_intercept_seed(
+        self,
+        interceptor_position: Array3,
+        interceptor_velocity: Array3,
+        target_positions: list[Array3],
+        target_velocity: Array3,
+        step_durations: np.ndarray,
+    ) -> np.ndarray:
+        controls = np.zeros((self.config.horizon_steps, 3), dtype=float)
+        position = interceptor_position.astype(float, copy=True)
+        velocity = interceptor_velocity.astype(float, copy=True)
+        accumulated_time = 0.0
+
+        for index, (target_position, dt) in enumerate(
+            zip(target_positions, step_durations, strict=True)
+        ):
+            accumulated_time += float(dt)
+            intercept_offset = target_position - position
+            desired_velocity = self._limit_norm(
+                intercept_offset / max(accumulated_time, 1e-6),
+                self.config.max_speed,
+            )
+
+            velocity_blend = 0.35
+            desired_velocity = (
+                (1.0 - velocity_blend) * desired_velocity
+                + velocity_blend * self._limit_norm(
+                    target_velocity,
+                    self.config.max_speed,
+                )
+            )
+            desired_acceleration = (desired_velocity - velocity) / max(float(dt), 1e-6)
+            controls[index] = self._limit_norm(
+                desired_acceleration,
+                self.config.max_accel,
+            )
+
+            velocity = self._limit_norm(
+                velocity + controls[index] * float(dt),
+                self.config.max_speed,
+            )
+            position = position + velocity * float(dt)
+
+        return controls
 
     @staticmethod
     def _limit_norm(vector: Array3, max_norm: float) -> Array3:
