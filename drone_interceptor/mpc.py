@@ -202,9 +202,11 @@ class AccelerationMPC:
                 index=index,
             )
 
-            lambda_current = stage_state_gradient + a_t.T @ lambda_next
-            gradients[index] = stage_control_gradient + b_t.T @ lambda_next
-            lambda_next = lambda_current
+            costate_at_next_state = stage_state_gradient + lambda_next
+            gradients[index] = (
+                stage_control_gradient + b_t.T @ costate_at_next_state
+            )
+            lambda_next = a_t.T @ costate_at_next_state
 
         return gradients
 

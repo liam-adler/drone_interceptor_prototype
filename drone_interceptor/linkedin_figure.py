@@ -72,7 +72,9 @@ def parse_args() -> argparse.Namespace:
 
 def load_runs(results_dir: Path) -> list[RunRecord]:
     records: list[RunRecord] = []
-    for json_path in sorted(results_dir.glob("*.json")):
+    for json_path in sorted(results_dir.rglob("*.json")):
+        if "aggregate" in json_path.parts:
+            continue
         data = json.loads(json_path.read_text(encoding="utf-8"))
         if "profile_name" not in data:
             continue
@@ -117,6 +119,17 @@ def distance_at_time(samples: list[tuple[float, float]], time_value: float) -> f
 
 def format_spawn(spawn_distance: float) -> str:
     return f"{spawn_distance:.1f}".replace(".", "p")
+
+
+def set_bar_axis_headroom(ax, values: list[float], minimum_top: float = 1.0) -> None:
+    finite_values = [float(value) for value in values if not np.isnan(value)]
+    if not finite_values:
+        ax.set_ylim(0.0, minimum_top)
+        return
+
+    max_value = max(finite_values)
+    top = max(max_value * 1.18, max_value + 0.12, minimum_top)
+    ax.set_ylim(0.0, top)
 
 
 def build_figure(
@@ -285,6 +298,10 @@ def build_figure(
     ax_time.set_xticks(x_positions)
     ax_time.set_xticklabels(["Avg capture time"])
     ax_time.set_title("Time to capture")
+    set_bar_axis_headroom(
+        ax_time,
+        [time_baseline[0], 0.0 if np.isnan(time_mpc[0]) else time_mpc[0]],
+    )
     ax_time.grid(True, axis="y", alpha=0.22)
     ax_time.legend(frameon=False)
     for bar, value in zip(list(bars3) + list(bars4), time_baseline + time_mpc):
@@ -306,11 +323,19 @@ def build_figure(
     ax_distance.set_xticks(x_positions)
     ax_distance.set_xticklabels(["Avg min distance"])
     ax_distance.set_title("Closest approach")
+    set_bar_axis_headroom(ax_distance, [distance_baseline[0], distance_mpc[0]])
     ax_distance.grid(True, axis="y", alpha=0.22)
     ax_distance.legend(frameon=False)
     for bar in list(bars3) + list(bars4):
         height = bar.get_height()
-        ax_distance.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.2f} m", ha="center", va="bottom", fontsize=10)
+        ax_distance.text(
+            bar.get_x() + bar.get_width() / 2,
+            height,
+            f"{height:.2f} m",
+            ha="center",
+            va="bottom",
+            fontsize=10,
+        )
 
     seed_text = ", ".join(str(run.random_seed) for run in baseline_runs)
     fig.text(
