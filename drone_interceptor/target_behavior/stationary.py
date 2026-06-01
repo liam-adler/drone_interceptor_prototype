@@ -1,0 +1,2 @@
+"""Placeholder stationary target behavior."""
+

@@ -259,7 +259,7 @@ ros2 launch drone_interceptor target_sim.launch.py output_dir:=results/my_experi
 To generate aggregate comparison plots across many saved runs:
 
 ```bash
-python3 -m drone_interceptor.compare_results --results-dir results/drone_interceptor
+python3 src/drone_interceptor/scripts/compare_results.py --results-dir results/drone_interceptor
 ```
 
 Or after installation:

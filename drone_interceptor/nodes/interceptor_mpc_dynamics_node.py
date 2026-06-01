@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import rclpy
 
-from drone_interceptor.point_mass_dynamics_node import (
+from drone_interceptor.nodes.point_mass_dynamics_node import (
     PointMassDynamicsNode,
     PointMassNodeConfig,
 )

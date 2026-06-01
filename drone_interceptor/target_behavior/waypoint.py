@@ -1,0 +1,2 @@
+"""Placeholder waypoint target behavior."""
+

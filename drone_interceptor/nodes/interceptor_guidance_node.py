@@ -7,7 +7,7 @@ import rclpy
 from geometry_msgs.msg import Vector3
 from rclpy.node import Node
 
-from drone_interceptor.interceptor_controller_base import (
+from drone_interceptor.guidance.base import (
     InterceptorControllerBase,
     NORM_TOLERANCE,
 )
