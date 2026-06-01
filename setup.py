@@ -31,6 +31,7 @@ setup(
     "console_scripts": [
         "target_behavior_node = drone_interceptor.nodes.target_behavior_node:main",
         "target_dynamics_node = drone_interceptor.nodes.target_dynamics_node:main",
+        "estimator_node = drone_interceptor.nodes.estimator_node:main",
         "interceptor_dynamics_node = drone_interceptor.nodes.interceptor_dynamics_node:main",
         "interceptor_guidance_node = drone_interceptor.nodes.interceptor_guidance_node:main",
         "interceptor_mpc_node = drone_interceptor.nodes.interceptor_mpc_node:main",

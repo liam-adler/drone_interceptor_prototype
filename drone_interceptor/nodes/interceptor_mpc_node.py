@@ -23,6 +23,7 @@ class InterceptorMpcNode(InterceptorControllerBase):
 
         self.declare_parameter("frame_id", "world")
         self.declare_parameter("update_rate_hz", 20.0)
+        self.declare_parameter("target_state_topic", "/target/estimated_state")
 
         self.declare_parameter("capture_radius", 0.5)
         self.declare_parameter("max_speed", 4.0)
@@ -50,6 +51,7 @@ class InterceptorMpcNode(InterceptorControllerBase):
 
         self.frame_id = str(self.get_parameter("frame_id").value)
         self.update_rate_hz = float(self.get_parameter("update_rate_hz").value)
+        self.target_state_topic = str(self.get_parameter("target_state_topic").value)
         self.capture_radius = float(self.get_parameter("capture_radius").value)
         self.max_speed = float(self.get_parameter("max_speed").value)
         self.max_accel = float(self.get_parameter("max_accel").value)
@@ -93,6 +95,7 @@ class InterceptorMpcNode(InterceptorControllerBase):
         )
 
         self.setup_controller_interfaces(
+            target_state_topic=self.target_state_topic,
             interceptor_state_topic="/interceptor_mpc/state",
             intercept_marker_topic="/interceptor_mpc/intercept_marker",
             intercept_marker_namespace="interceptor_mpc_intercept_point",

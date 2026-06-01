@@ -12,7 +12,10 @@ from drone_interceptor.guidance.base import (
     InterceptorControllerBase,
     NORM_TOLERANCE,
 )
-from drone_interceptor.guidance.lead_pursuit import compute_lead_pursuit_aim_point
+from drone_interceptor.guidance.lead_pursuit import (
+    compute_lead_pursuit_aim_point,
+    compute_lead_pursuit_intercept_time,
+)
 from drone_interceptor.guidance.pure_pursuit import compute_pure_pursuit_aim_point
 
 
@@ -41,25 +44,36 @@ class InterceptorGuidanceNode(InterceptorControllerBase):
 
         self.declare_parameter("frame_id", "world")
         self.declare_parameter("update_rate_hz", 30.0)
+        self.declare_parameter("target_state_topic", "/target/estimated_state")
 
         self.declare_parameter("mode", "lead_pursuit")
         self.declare_parameter("interceptor_speed", 4.0)
+        self.declare_parameter("interceptor_max_acceleration", 3.0)
         self.declare_parameter("capture_radius", 0.5)
 
         self.declare_parameter("max_prediction_time", 8.0)
         self.declare_parameter("min_prediction_time", 0.1)
+        self.declare_parameter("acceleration_lead_gain", 0.5)
 
         self.frame_id = self.get_string_parameter("frame_id")
         self.update_rate_hz = self.get_float_parameter("update_rate_hz")
+        self.target_state_topic = self.get_string_parameter("target_state_topic")
 
         self.mode = self.get_string_parameter("mode")
         self.interceptor_speed = self.get_float_parameter("interceptor_speed")
+        self.interceptor_max_acceleration = self.get_float_parameter(
+            "interceptor_max_acceleration"
+        )
         self.capture_radius = self.get_float_parameter("capture_radius")
 
         self.max_prediction_time = self.get_float_parameter("max_prediction_time")
         self.min_prediction_time = self.get_float_parameter("min_prediction_time")
+        self.acceleration_lead_gain = self.get_float_parameter(
+            "acceleration_lead_gain"
+        )
 
         self.setup_controller_interfaces(
+            target_state_topic=self.target_state_topic,
             interceptor_state_topic="/interceptor/state",
             intercept_marker_topic="/intercept/marker",
             intercept_marker_namespace="intercept_point",
@@ -86,12 +100,13 @@ class InterceptorGuidanceNode(InterceptorControllerBase):
         interceptor_position: np.ndarray,
         interceptor_velocity: np.ndarray,
     ) -> None:
-        del interceptor_velocity
-        if is_within_capture_radius(
+        within_capture_radius = is_within_capture_radius(
             target_position,
             interceptor_position,
             self.capture_radius,
-        ):
+        )
+
+        if within_capture_radius:
             follow_velocity = self.limit_vector(
                 target_velocity,
                 self.interceptor_speed,
@@ -121,6 +136,30 @@ class InterceptorGuidanceNode(InterceptorControllerBase):
                 max_prediction_time=self.max_prediction_time,
                 norm_tolerance=NORM_TOLERANCE,
             )
+        elif self.mode == "acceleration_aware_lead_pursuit":
+            raw_t_go = compute_lead_pursuit_intercept_time(
+                target_position=target_position,
+                target_velocity=target_velocity,
+                interceptor_position=interceptor_position,
+                interceptor_speed=self.interceptor_speed,
+                min_prediction_time=self.min_prediction_time,
+                max_prediction_time=self.max_prediction_time,
+                norm_tolerance=NORM_TOLERANCE,
+            )
+            interceptor_current_speed = float(np.linalg.norm(interceptor_velocity))
+            t_accel = max(
+                0.0,
+                self.interceptor_speed - interceptor_current_speed,
+            ) / max(self.interceptor_max_acceleration, NORM_TOLERANCE)
+            t_effective = raw_t_go + self.acceleration_lead_gain * t_accel
+            t_effective = float(
+                np.clip(
+                    t_effective,
+                    self.min_prediction_time,
+                    self.max_prediction_time,
+                )
+            )
+            aim_point = target_position + target_velocity * t_effective
 
         else:
             self.get_logger().warn(

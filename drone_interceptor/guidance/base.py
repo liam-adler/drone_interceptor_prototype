@@ -6,8 +6,11 @@ from typing import Optional
 
 import numpy as np
 from geometry_msgs.msg import Vector3
+from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
+from std_msgs.msg import ColorRGBA
+from visualization_msgs.msg import Marker
 
 from drone_interceptor.core.math_utils import NORM_TOLERANCE, clamp_norm
 from drone_interceptor.visualization.rviz_markers import (
@@ -23,6 +26,7 @@ class InterceptorControllerBase(Node):
     def setup_controller_interfaces(
         self,
         *,
+        target_state_topic: str,
         interceptor_state_topic: str,
         intercept_marker_topic: str,
         intercept_marker_namespace: str,
@@ -39,7 +43,7 @@ class InterceptorControllerBase(Node):
 
         self.create_subscription(
             Odometry,
-            "/target/state",
+            target_state_topic,
             self.target_callback,
             10,
         )

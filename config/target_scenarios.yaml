@@ -1,2 +1,45 @@
-# Placeholder target scenario definitions.
+scenarios:
+  matched_default:
+    profile: matched
+    spawn_distance: 30.0
+    threat_response: true
+    random_seed: 0
 
+  target_faster_default:
+    profile: target_faster
+    spawn_distance: 30.0
+    threat_response: true
+    random_seed: 0
+
+  target_more_maneuverable_default:
+    profile: target_more_maneuverable
+    spawn_distance: 30.0
+    threat_response: true
+    random_seed: 0
+
+  target_advantaged_default:
+    profile: target_advantaged
+    spawn_distance: 30.0
+    threat_response: true
+    random_seed: 0
+
+  target_advantaged_close_start:
+    profile: target_advantaged
+    spawn_distance: 20.0
+    threat_response: true
+    random_seed: 0
+
+  target_advantaged_no_threat:
+    profile: target_advantaged
+    spawn_distance: 30.0
+    threat_response: false
+    random_seed: 0
+
+  target_advantaged_medium_noise:
+    profile: target_advantaged
+    spawn_distance: 30.0
+    threat_response: true
+    random_seed: 0
+    target_noise_enabled: true
+    target_noise_position_stddev: 0.6
+    target_filter_enabled: true
