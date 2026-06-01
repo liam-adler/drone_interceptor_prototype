@@ -5,14 +5,18 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
-from geometry_msgs.msg import Point, Vector3
+from geometry_msgs.msg import Vector3
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
-from std_msgs.msg import ColorRGBA
-from visualization_msgs.msg import Marker
+
+from drone_interceptor.core.math_utils import NORM_TOLERANCE, clamp_norm
+from drone_interceptor.visualization.rviz_markers import (
+    build_sphere_marker,
+    make_color,
+    make_point,
+)
 
 Array3 = np.ndarray
-NORM_TOLERANCE = 1e-9
 
 
 class InterceptorControllerBase(Node):
@@ -102,23 +106,16 @@ class InterceptorControllerBase(Node):
         active_color: tuple[float, float, float, float],
         captured_color: tuple[float, float, float, float],
     ) -> None:
-        marker = Marker()
-        marker.header.stamp = self.get_clock().now().to_msg()
-        marker.header.frame_id = self.frame_id
-        marker.ns = self.intercept_marker_namespace
-        marker.id = 0
-        marker.type = Marker.SPHERE
-        marker.action = Marker.ADD
-        marker.pose.position.x = float(position[0])
-        marker.pose.position.y = float(position[1])
-        marker.pose.position.z = float(position[2])
-        marker.pose.orientation.w = 1.0
-
         marker_scale = captured_scale if captured else active_scale
-        marker.scale.x = marker_scale
-        marker.scale.y = marker_scale
-        marker.scale.z = marker_scale
-        marker.color = self.make_color(*(captured_color if captured else active_color))
+        marker = build_sphere_marker(
+            stamp=self.get_clock().now().to_msg(),
+            frame_id=self.frame_id,
+            namespace=self.intercept_marker_namespace,
+            marker_id=0,
+            position=position,
+            scale=marker_scale,
+            color=captured_color if captured else active_color,
+        )
         self.marker_pub.publish(marker)
 
     @staticmethod
@@ -145,12 +142,7 @@ class InterceptorControllerBase(Node):
 
     @staticmethod
     def limit_vector(vector: Array3, max_norm: float) -> Array3:
-        norm = float(np.linalg.norm(vector))
-        if norm < NORM_TOLERANCE:
-            return np.zeros(3, dtype=float)
-        if norm <= max_norm:
-            return vector.copy()
-        return vector / norm * max_norm
+        return clamp_norm(vector, max_norm)
 
     @staticmethod
     def to_vector3(vector: Array3) -> Vector3:
@@ -162,17 +154,8 @@ class InterceptorControllerBase(Node):
 
     @staticmethod
     def make_color(r: float, g: float, b: float, a: float) -> ColorRGBA:
-        color = ColorRGBA()
-        color.r = r
-        color.g = g
-        color.b = b
-        color.a = a
-        return color
+        return make_color(r, g, b, a)
 
     @staticmethod
     def make_point(coords: Array3) -> Point:
-        point = Point()
-        point.x = float(coords[0])
-        point.y = float(coords[1])
-        point.z = float(coords[2])
-        return point
+        return make_point(coords)

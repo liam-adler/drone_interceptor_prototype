@@ -14,6 +14,7 @@ from drone_interceptor.guidance.mpc_pursuit import (
     MpcConfig,
     MpcWeights,
 )
+from drone_interceptor.visualization.path_markers import build_line_strip_marker
 
 
 class InterceptorMpcNode(InterceptorControllerBase):
@@ -176,31 +177,24 @@ class InterceptorMpcNode(InterceptorControllerBase):
     ) -> None:
         now = self.get_clock().now().to_msg()
 
-        interceptor_marker = Marker()
-        interceptor_marker.header.stamp = now
-        interceptor_marker.header.frame_id = self.frame_id
-        interceptor_marker.ns = "interceptor_mpc_prediction"
-        interceptor_marker.id = 0
-        interceptor_marker.type = Marker.LINE_STRIP
-        interceptor_marker.action = Marker.ADD
-        interceptor_marker.scale.x = 0.035
-        interceptor_marker.color = self.make_color(0.0, 0.9, 0.6, 0.9)
-
-        target_marker = Marker()
-        target_marker.header.stamp = now
-        target_marker.header.frame_id = self.frame_id
-        target_marker.ns = "target_prediction"
-        target_marker.id = 0
-        target_marker.type = Marker.LINE_STRIP
-        target_marker.action = Marker.ADD
-        target_marker.scale.x = 0.025
-        target_marker.color = self.make_color(1.0, 0.6, 0.1, 0.8)
-
-        for position in interceptor_positions:
-            interceptor_marker.points.append(self.make_point(position))
-
-        for position in target_positions:
-            target_marker.points.append(self.make_point(position))
+        interceptor_marker = build_line_strip_marker(
+            stamp=now,
+            frame_id=self.frame_id,
+            namespace="interceptor_mpc_prediction",
+            marker_id=0,
+            points=interceptor_positions,
+            line_width=0.035,
+            color=(0.0, 0.9, 0.6, 0.9),
+        )
+        target_marker = build_line_strip_marker(
+            stamp=now,
+            frame_id=self.frame_id,
+            namespace="target_prediction",
+            marker_id=0,
+            points=target_positions,
+            line_width=0.025,
+            color=(1.0, 0.6, 0.1, 0.8),
+        )
 
         self.predicted_path_pub.publish(interceptor_marker)
         self.target_prediction_pub.publish(target_marker)

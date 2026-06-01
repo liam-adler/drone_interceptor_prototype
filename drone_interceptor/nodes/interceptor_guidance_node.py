@@ -7,10 +7,13 @@ import rclpy
 from geometry_msgs.msg import Vector3
 from rclpy.node import Node
 
+from drone_interceptor.capture.radius_capture import is_within_capture_radius
 from drone_interceptor.guidance.base import (
     InterceptorControllerBase,
     NORM_TOLERANCE,
 )
+from drone_interceptor.guidance.lead_pursuit import compute_lead_pursuit_aim_point
+from drone_interceptor.guidance.pure_pursuit import compute_pure_pursuit_aim_point
 
 
 class InterceptorGuidanceNode(InterceptorControllerBase):
@@ -84,10 +87,11 @@ class InterceptorGuidanceNode(InterceptorControllerBase):
         interceptor_velocity: np.ndarray,
     ) -> None:
         del interceptor_velocity
-        relative_position = target_position - interceptor_position
-        distance = float(np.linalg.norm(relative_position))
-
-        if distance <= self.capture_radius:
+        if is_within_capture_radius(
+            target_position,
+            interceptor_position,
+            self.capture_radius,
+        ):
             follow_velocity = self.limit_vector(
                 target_velocity,
                 self.interceptor_speed,
@@ -105,14 +109,17 @@ class InterceptorGuidanceNode(InterceptorControllerBase):
             return
 
         if self.mode == "pure_pursuit":
-            aim_point = target_position
+            aim_point = compute_pure_pursuit_aim_point(target_position)
 
         elif self.mode == "lead_pursuit":
-            aim_point = self.compute_lead_pursuit_aim_point(
+            aim_point = compute_lead_pursuit_aim_point(
                 target_position=target_position,
                 target_velocity=target_velocity,
                 interceptor_position=interceptor_position,
                 interceptor_speed=self.interceptor_speed,
+                min_prediction_time=self.min_prediction_time,
+                max_prediction_time=self.max_prediction_time,
+                norm_tolerance=NORM_TOLERANCE,
             )
 
         else:
@@ -141,69 +148,6 @@ class InterceptorGuidanceNode(InterceptorControllerBase):
             active_color=(1.0, 1.0, 0.1, 1.0),
             captured_color=(0.1, 1.0, 0.1, 1.0),
         )
-
-    def compute_lead_pursuit_aim_point(
-        self,
-        target_position: np.ndarray,
-        target_velocity: np.ndarray,
-        interceptor_position: np.ndarray,
-        interceptor_speed: float,
-    ) -> np.ndarray:
-        """
-        Constant-velocity lead pursuit.
-
-        Solves approximately:
-
-            ||target_position + target_velocity * t - interceptor_position||
-            =
-            interceptor_speed * t
-
-        If no good solution exists, falls back to a bounded prediction time.
-        """
-
-        relative_position = target_position - interceptor_position
-
-        a = float(np.dot(target_velocity, target_velocity) - interceptor_speed**2)
-        b = float(2.0 * np.dot(relative_position, target_velocity))
-        c = float(np.dot(relative_position, relative_position))
-
-        candidate_times: list[float] = []
-
-        if abs(a) < NORM_TOLERANCE:
-            if abs(b) > NORM_TOLERANCE:
-                t = -c / b
-                if t > 0.0:
-                    candidate_times.append(t)
-        else:
-            discriminant = b**2 - 4.0 * a * c
-
-            if discriminant >= 0.0:
-                sqrt_discriminant = float(np.sqrt(discriminant))
-
-                t1 = (-b - sqrt_discriminant) / (2.0 * a)
-                t2 = (-b + sqrt_discriminant) / (2.0 * a)
-
-                if t1 > 0.0:
-                    candidate_times.append(t1)
-
-                if t2 > 0.0:
-                    candidate_times.append(t2)
-
-        if candidate_times:
-            t_go = min(candidate_times)
-        else:
-            distance = float(np.linalg.norm(relative_position))
-            t_go = distance / max(interceptor_speed, 1e-6)
-
-        t_go = float(
-            np.clip(
-                t_go,
-                self.min_prediction_time,
-                self.max_prediction_time,
-            )
-        )
-
-        return target_position + target_velocity * t_go
 
     def publish_command(self, vector: np.ndarray) -> None:
         self.cmd_pub.publish(self.to_vector3(vector))

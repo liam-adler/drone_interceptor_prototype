@@ -10,6 +10,8 @@ from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from std_msgs.msg import Float32
 
+from drone_interceptor.capture.radius_capture import compute_distance
+
 
 class DistanceMonitorNode(Node):
     def __init__(self) -> None:
@@ -65,7 +67,7 @@ class DistanceMonitorNode(Node):
     def compute_distance(self) -> float:
         assert self.target_position is not None
         assert self.interceptor_position is not None
-        return float(np.linalg.norm(self.target_position - self.interceptor_position))
+        return compute_distance(self.target_position, self.interceptor_position)
 
     def get_string_parameter(self, name: str) -> str:
         return str(self.get_parameter(name).value)

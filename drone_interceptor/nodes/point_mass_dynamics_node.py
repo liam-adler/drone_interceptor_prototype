@@ -8,14 +8,16 @@ from typing import Literal, Optional
 
 import numpy as np
 import rclpy
-from geometry_msgs.msg import Point, TransformStamped, Vector3
+from geometry_msgs.msg import TransformStamped, Vector3
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
-from std_msgs.msg import ColorRGBA, Float32
+from std_msgs.msg import Float32
 from tf2_ros import TransformBroadcaster
 from visualization_msgs.msg import Marker
 
 from drone_interceptor.dynamics import PointMassState, SimplePointMassDynamics
+from drone_interceptor.visualization.path_markers import build_line_strip_marker
+from drone_interceptor.visualization.rviz_markers import build_sphere_marker
 
 Array3 = np.ndarray
 CommandMode = Literal["velocity", "acceleration"]
@@ -258,25 +260,16 @@ class PointMassDynamicsNode(Node):
         qw: float,
     ) -> None:
         position = self.state.position
-
-        marker = Marker()
-        marker.header.stamp = now.to_msg()
-        marker.header.frame_id = self.frame_id
-        marker.ns = self.config.marker_namespace
-        marker.id = 0
-        marker.type = Marker.SPHERE
-        marker.action = Marker.ADD
-        marker.pose.position.x = float(position[0])
-        marker.pose.position.y = float(position[1])
-        marker.pose.position.z = float(position[2])
-        marker.pose.orientation.x = qx
-        marker.pose.orientation.y = qy
-        marker.pose.orientation.z = qz
-        marker.pose.orientation.w = qw
-        marker.scale.x = self.config.marker_scale
-        marker.scale.y = self.config.marker_scale
-        marker.scale.z = self.config.marker_scale
-        marker.color = self.make_color(*self.config.marker_color)
+        marker = build_sphere_marker(
+            stamp=now.to_msg(),
+            frame_id=self.frame_id,
+            namespace=self.config.marker_namespace,
+            marker_id=0,
+            position=position,
+            orientation=(qx, qy, qz, qw),
+            scale=self.config.marker_scale,
+            color=self.config.marker_color,
+        )
         self.marker_pub.publish(marker)
 
     def publish_path_marker(self, now: rclpy.time.Time) -> None:
@@ -284,16 +277,15 @@ class PointMassDynamicsNode(Node):
         if len(self.path_points) > self.path_max_length:
             self.path_points = self.path_points[-self.path_max_length :]
 
-        marker = Marker()
-        marker.header.stamp = now.to_msg()
-        marker.header.frame_id = self.frame_id
-        marker.ns = self.config.path_marker_namespace
-        marker.id = 0
-        marker.type = Marker.LINE_STRIP
-        marker.action = Marker.ADD
-        marker.scale.x = 0.05
-        marker.color = self.make_color(*self.config.marker_color)
-        marker.points.extend(self.make_point(point) for point in self.path_points)
+        marker = build_line_strip_marker(
+            stamp=now.to_msg(),
+            frame_id=self.frame_id,
+            namespace=self.config.path_marker_namespace,
+            marker_id=0,
+            points=self.path_points,
+            line_width=0.05,
+            color=self.config.marker_color,
+        )
         self.path_marker_pub.publish(marker)
 
     def get_float_parameter(self, name: str) -> float:
@@ -308,23 +300,6 @@ class PointMassDynamicsNode(Node):
     @staticmethod
     def vector_from_xyz(x: float, y: float, z: float) -> Array3:
         return np.array([x, y, z], dtype=float)
-
-    @staticmethod
-    def make_color(r: float, g: float, b: float, a: float) -> ColorRGBA:
-        color = ColorRGBA()
-        color.r = r
-        color.g = g
-        color.b = b
-        color.a = a
-        return color
-
-    @staticmethod
-    def make_point(coords: Array3) -> Point:
-        point = Point()
-        point.x = float(coords[0])
-        point.y = float(coords[1])
-        point.z = float(coords[2])
-        return point
 
     @staticmethod
     def compute_yaw_from_velocity(velocity: Array3) -> float:

@@ -9,8 +9,13 @@ from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from std_msgs.msg import Float32
 
-HEADING_ZERO_TOLERANCE = 1e-6
-DEFAULT_HEADING = np.array([1.0, 0.0, 0.0], dtype=float)
+from drone_interceptor.target_behavior.random_maneuver import (
+    DEFAULT_HEADING,
+    compute_desired_speed,
+    normalized_heading,
+    sample_cruise_speed,
+    sample_random_heading,
+)
 
 
 class TargetBehaviorNode(Node):
@@ -87,13 +92,17 @@ class TargetBehaviorNode(Node):
         self.interceptor_position = self.extract_position(msg)
 
     def heading_timer_callback(self) -> None:
-        direction = self.sample_random_heading()
-        norm = float(np.linalg.norm(direction))
-        if norm < HEADING_ZERO_TOLERANCE:
+        direction = sample_random_heading(self.rng)
+        heading = normalized_heading(direction)
+        if heading is None:
             return
 
-        self.current_heading = direction / norm
-        self.current_cruise_speed = self.sample_cruise_speed()
+        self.current_heading = heading
+        self.current_cruise_speed = sample_cruise_speed(
+            self.rng,
+            min_speed=self.min_speed,
+            max_speed=self.max_speed,
+        )
         self.publish_heading()
 
     def speed_timer_callback(self) -> None:
@@ -105,43 +114,15 @@ class TargetBehaviorNode(Node):
         self.heading_publisher.publish(self.to_vector3(self.current_heading))
 
     def compute_desired_speed(self) -> float:
-        if (
-            not self.enable_threat_response
-            or self.target_position is None
-            or self.interceptor_position is None
-        ):
-            return self.current_cruise_speed
-
-        distance = float(
-            np.linalg.norm(self.target_position - self.interceptor_position)
+        return compute_desired_speed(
+            current_cruise_speed=self.current_cruise_speed,
+            max_speed=self.max_speed,
+            enable_threat_response=self.enable_threat_response,
+            threat_radius=self.threat_radius,
+            escape_speed_min_ratio=self.escape_speed_min_ratio,
+            target_position=self.target_position,
+            interceptor_position=self.interceptor_position,
         )
-        if distance >= self.threat_radius:
-            return self.current_cruise_speed
-
-        distance_ratio = max(distance, 0.0) / max(
-            self.threat_radius,
-            HEADING_ZERO_TOLERANCE,
-        )
-        urgency = 1.0 - distance_ratio
-        escape_floor = self.max_speed * self.escape_speed_min_ratio
-        boosted_speed = self.current_cruise_speed + urgency * (
-            self.max_speed - self.current_cruise_speed
-        )
-
-        return float(np.clip(boosted_speed, escape_floor, self.max_speed))
-
-    def sample_random_heading(self) -> np.ndarray:
-        return np.array(
-            [
-                self.rng.uniform(-1.0, 1.0),
-                self.rng.uniform(-1.0, 1.0),
-                self.rng.uniform(-0.2, 0.2),
-            ],
-            dtype=float,
-        )
-
-    def sample_cruise_speed(self) -> float:
-        return float(self.rng.uniform(self.min_speed, self.max_speed))
 
     def get_bool_parameter(self, name: str) -> bool:
         return bool(self.get_parameter(name).value)
