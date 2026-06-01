@@ -1,2 +1,16 @@
-# Placeholder experiment definitions.
+experiments:
+  baseline_pure_pursuit_advantaged:
+    scenario: target_advantaged_default
+    controller_preset: baseline_pure_pursuit
 
+  baseline_lead_pursuit_advantaged:
+    scenario: target_advantaged_default
+    controller_preset: baseline_lead_pursuit
+
+  baseline_acceleration_aware_advantaged:
+    scenario: target_advantaged_default
+    controller_preset: baseline_acceleration_aware
+
+  mpc_advantaged:
+    scenario: target_advantaged_default
+    controller_preset: mpc_default

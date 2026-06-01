@@ -1,2 +1,15 @@
-# Placeholder guidance method definitions.
+controller_presets:
+  baseline_pure_pursuit:
+    controller_mode: baseline
+    guidance_mode: pure_pursuit
 
+  baseline_lead_pursuit:
+    controller_mode: baseline
+    guidance_mode: lead_pursuit
+
+  baseline_acceleration_aware:
+    controller_mode: baseline
+    guidance_mode: acceleration_aware_lead_pursuit
+
+  mpc_default:
+    controller_mode: mpc
