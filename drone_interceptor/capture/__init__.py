@@ -1,2 +1,1 @@
 """Capture criteria modules."""
-

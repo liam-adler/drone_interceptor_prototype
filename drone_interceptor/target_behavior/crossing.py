@@ -1,2 +1,0 @@
-"""Placeholder crossing target behavior."""
-

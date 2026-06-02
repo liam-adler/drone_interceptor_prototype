@@ -1,291 +1,150 @@
 # Drone Interceptor
 
 This package is a ROS 2 simulation of a target drone and an interceptor drone.
+It supports both a baseline guidance controller and an MPC-based controller so
+you can compare how each interceptor behaves against the same target.
 
-The target:
-- moves with simple point-mass dynamics
-- changes heading randomly
-- can optionally speed up when the interceptor gets close
+## How To Use The Package
 
-The interceptor:
-- moves with the same point-mass style dynamics
-- reads the target state
-- chases the target with pursuit guidance
+1. Source ROS 2.
+2. Build the package from the workspace root.
+3. Source the workspace overlay.
+4. Launch the simulation with the controller and scenario you want.
+5. Watch the motion in RViz, inspect distances with `rqt_plot`, and review saved
+   result artifacts in `results/drone_interceptor`.
 
-The package also includes an acceleration-commanded MPC interceptor so you can
-compare both trackers against the same target in one run.
-
-The package also includes:
-- an RViz config for visualization
-- a live distance monitor topic
-- an `rqt_plot` view for target/interceptor separation
-
-## Nodes
-
-`target_behavior_node`
-- Publishes `/target/desired_heading`
-- Publishes `/target/desired_speed`
-- Randomizes target heading and cruise speed
-- Optionally boosts target speed when the interceptor enters a threat radius
-
-`target_dynamics_node`
-- Subscribes to `/target/desired_heading` and `/target/desired_speed`
-- Simulates target position and velocity
-- Publishes `/target/state`
-- Publishes target marker and target path marker
-
-`interceptor_guidance_node`
-- Subscribes to `/target/state`
-- Subscribes to `/interceptor/state`
-- Publishes `/interceptor/cmd_vel`
-- Uses pursuit guidance to chase the target
-
-`interceptor_dynamics_node`
-- Subscribes to `/interceptor/cmd_vel`
-- Simulates interceptor position and velocity
-- Publishes `/interceptor/state`
-- Publishes interceptor marker and interceptor path marker
-
-`interceptor_mpc_node`
-- Subscribes to `/target/state`
-- Subscribes to `/interceptor_mpc/state`
-- Publishes `/interceptor_mpc/cmd_accel`
-- Solves a small acceleration-commanded MPC problem each control tick
-
-`interceptor_mpc_dynamics_node`
-- Subscribes to `/interceptor_mpc/cmd_accel`
-- Simulates the MPC interceptor with acceleration-limited point-mass dynamics
-- Publishes `/interceptor_mpc/state`
-- Publishes MPC interceptor marker and MPC interceptor path marker
-
-`distance_monitor_node`
-- Subscribes to `/target/state`
-- Subscribes to a configured interceptor state topic
-- Publishes a configured distance topic
-
-## What The Simulation Does
-
-1. The target behavior node chooses a heading and speed.
-2. The target dynamics node turns that into smooth motion with speed and acceleration limits.
-3. The interceptor guidance node looks at both drone states and commands a chase velocity.
-4. The interceptor dynamics node simulates the interceptor motion.
-5. A second interceptor runs acceleration-commanded MPC against the same target.
-6. Distance monitor nodes publish the baseline and MPC separations.
-7. RViz shows the drones, paths, TF frames, and intercept markers.
-8. `rqt_plot` can show the distance-over-time comparison.
-
-## Build
-
-Run these commands from the workspace root:
+Typical workflow:
 
 ```bash
+source /opt/ros/humble/setup.bash
 cd /home/liam/ros2_drone_intercept_ws
-colcon build --packages-select drone_interceptor
+colcon build --packages-select drone_interceptor --symlink-install
+source install/setup.bash
+ros2 launch drone_interceptor target_sim.launch.py
+```
+
+What the package does during a run:
+
+- The target chooses a heading and speed.
+- The target dynamics node turns those commands into smooth motion.
+- The estimator can add measurement noise and publish a filtered target state.
+- The interceptor controller reads the target/interceptor states and commands a
+  chase action.
+- The interceptor dynamics node simulates the interceptor motion.
+- A distance monitor publishes separation over time.
+- A results logger saves CSV, JSON, and PNG outputs for later comparison.
+
+## Build Commands
+
+From the workspace root:
+
+```bash
+source /opt/ros/humble/setup.bash
+cd /home/liam/ros2_drone_intercept_ws
+colcon build --packages-select drone_interceptor --symlink-install
 source install/setup.bash
 ```
 
-If your shell does not already have ROS 2 sourced, do this first:
-
-```bash
-source /opt/ros/<your_ros_distro>/setup.bash
-```
-
-Then build again:
+If you only changed Python code and want to rebuild quickly:
 
 ```bash
 cd /home/liam/ros2_drone_intercept_ws
-colcon build --packages-select drone_interceptor
+colcon build --packages-select drone_interceptor --symlink-install
 source install/setup.bash
 ```
 
-## Main Launch Command
+Run tests:
+
+```bash
+cd /home/liam/ros2_drone_intercept_ws
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+colcon test --packages-select drone_interceptor
+colcon test-result --verbose
+```
+
+## Launch Commands
+
+### Default Launch
 
 ```bash
 ros2 launch drone_interceptor target_sim.launch.py
 ```
 
 Default behavior:
-- target and interceptor start 30 meters apart
+
+- scenario: `target_advantaged_default`
+- controller preset: `baseline_lead_pursuit`
+- target/interceptor start 30 meters apart
+- target threat response is enabled
 - RViz opens automatically
 - `rqt_plot` opens automatically
-- the plot window opens after a short delay, and you enter the topic manually
-- target threat response is enabled
-- default profile is `target_advantaged`
 
-## Launch Options
+### Baseline Guidance Controller
 
-`profile`
-- Selects the speed and maneuverability setup.
-
-Available profiles:
-- `matched`
-- `target_faster`
-- `target_more_maneuverable`
-- `target_advantaged`
-
-`threat_response`
-- `true` or `false`
-- When `true`, the target speeds up as the interceptor gets close.
-
-`spawn_distance`
-- Initial separation in meters.
-
-`open_rviz`
-- `true` or `false`
-
-`open_plot`
-- `true` or `false`
-
-## Example Commands
-
-Default run:
+Use the baseline controller with the available guidance modes:
 
 ```bash
-ros2 launch drone_interceptor target_sim.launch.py
+ros2 launch drone_interceptor target_sim.launch.py controller_mode:=baseline guidance_mode:=pure_pursuit
+ros2 launch drone_interceptor target_sim.launch.py controller_mode:=baseline guidance_mode:=lead_pursuit
+ros2 launch drone_interceptor target_sim.launch.py controller_mode:=baseline guidance_mode:=acceleration_aware_lead_pursuit
 ```
 
-Matched target and interceptor:
+You can also use the configured controller presets:
+
+```bash
+ros2 launch drone_interceptor target_sim.launch.py controller_preset:=baseline_pure_pursuit
+ros2 launch drone_interceptor target_sim.launch.py controller_preset:=baseline_lead_pursuit
+ros2 launch drone_interceptor target_sim.launch.py controller_preset:=baseline_acceleration_aware
+```
+
+### MPC Controller
+
+```bash
+ros2 launch drone_interceptor target_sim.launch.py controller_mode:=mpc
+```
+
+Or with the preset:
+
+```bash
+ros2 launch drone_interceptor target_sim.launch.py controller_preset:=mpc_default
+```
+
+### Different Target/Vehicle Profiles
 
 ```bash
 ros2 launch drone_interceptor target_sim.launch.py profile:=matched
-```
-
-Target faster only:
-
-```bash
 ros2 launch drone_interceptor target_sim.launch.py profile:=target_faster
-```
-
-Target more maneuverable only:
-
-```bash
 ros2 launch drone_interceptor target_sim.launch.py profile:=target_more_maneuverable
-```
-
-Target both faster and more maneuverable:
-
-```bash
 ros2 launch drone_interceptor target_sim.launch.py profile:=target_advantaged
 ```
 
-Disable threat response:
+### Scenario And Behavior Variants
 
 ```bash
 ros2 launch drone_interceptor target_sim.launch.py threat_response:=false
-```
-
-Spawn 40 meters apart:
-
-```bash
 ros2 launch drone_interceptor target_sim.launch.py spawn_distance:=40.0
+ros2 launch drone_interceptor target_sim.launch.py random_seed:=4
+ros2 launch drone_interceptor target_sim.launch.py scenario:=target_advantaged_close_start
+ros2 launch drone_interceptor target_sim.launch.py scenario:=target_advantaged_no_threat
+ros2 launch drone_interceptor target_sim.launch.py scenario:=target_advantaged_medium_noise
 ```
 
-Run without RViz:
+### Headless Or Lighter Runs
 
 ```bash
 ros2 launch drone_interceptor target_sim.launch.py open_rviz:=false
-```
-
-Run without the live plot:
-
-```bash
 ros2 launch drone_interceptor target_sim.launch.py open_plot:=false
+ros2 launch drone_interceptor target_sim.launch.py open_rviz:=false open_plot:=false
 ```
 
-Run with matched profile and no threat response:
-
-```bash
-ros2 launch drone_interceptor target_sim.launch.py profile:=matched threat_response:=false
-```
-
-## Distance Plot
-
-The baseline distance monitor publishes:
-
-```bash
-/intercept/distance
-```
-
-The MPC distance monitor publishes:
-
-```bash
-/intercept/distance_mpc
-```
-
-The plotted numeric fields are:
-
-```bash
-/intercept/distance/data
-/intercept/distance_mpc/data
-```
-
-If you want to open the plot manually:
-
-```bash
-ros2 run rqt_plot rqt_plot
-```
-
-If `rqt_plot` opens but shows `Topic/Field to enter something`:
-
-1. Enter `/intercept/distance/data` and `/intercept/distance_mpc/data` in the plot fields.
-2. If that still does not draw, enter `/intercept/distance` or `/intercept/distance_mpc` and select the `data` field.
-3. Verify the topic is publishing with:
-
-```bash
-ros2 topic echo /intercept/distance
-ros2 topic echo /intercept/distance_mpc
-```
-
-## Saved Artifacts
-
-Each run writes artifacts into `results/drone_interceptor` by default:
-
-- `<run_label>.csv` with `time_s` and `distance_m`
-- `<run_label>.json` with summary metrics
-- `<run_label>.png` with the distance trace
-
-The run label includes the active configuration, for example:
-
-```text
-20260527_153012__mode_mpc__profile_target_advantaged__threat_on__spawn_30p0m
-```
-
-You can choose another output folder with:
+### Output Location Override
 
 ```bash
 ros2 launch drone_interceptor target_sim.launch.py output_dir:=results/my_experiments
 ```
 
-To generate aggregate comparison plots across many saved runs:
-
-```bash
-python3 src/drone_interceptor/scripts/compare_results.py --results-dir results/drone_interceptor
-```
-
-Or after installation:
-
-```bash
-compare_results --results-dir results/drone_interceptor
-```
-
-This writes:
-
-- `aggregate/distance_over_time__*.png`
-- `aggregate/summary_comparison.png`
-- `aggregate/capture_time_comparison.png`
-- `aggregate/min_distance_comparison.png`
-- `aggregate/capture_rate_comparison.png`
-- `aggregate/aggregate_summary.md`
-
-You should see changing values like:
-
-```text
-data: 29.8
-data: 29.6
-data: 29.4
-```
-
-## Useful ROS 2 Checks
+### Useful ROS 2 Runtime Checks
 
 Show all running nodes:
 
@@ -299,26 +158,162 @@ Show all topics:
 ros2 topic list
 ```
 
-Echo the live distance:
+Watch baseline controller commands:
 
 ```bash
-ros2 topic echo /intercept/distance
+ros2 topic echo /interceptor/cmd_vel
 ```
 
-Echo the target state:
-
-```bash
-ros2 topic echo /target/state
-```
-
-Echo the interceptor state:
+Watch the interceptor state:
 
 ```bash
 ros2 topic echo /interceptor/state
 ```
 
+Watch the target estimate used by the baseline controller:
+
+```bash
+ros2 topic echo /target/estimated_state
+```
+
+Watch the live distance:
+
+```bash
+ros2 topic echo /intercept/distance
+```
+
+Open the distance plot manually:
+
+```bash
+ros2 run rqt_plot rqt_plot
+```
+
+Useful plot fields:
+
+```text
+/intercept/distance/data
+/intercept/distance_mpc/data
+```
+
+## Screenshot
+
+The figure below shows the averaged overlay comparison across five 60-second
+runs for each guidance/controller method.
+
+![Average controller comparison](docs/average_overlay_comparison.png)
+
+## What The Nodes And Scripts Do
+
+### Nodes
+
+`target_behavior_node`
+
+- Purpose: generates the target's desired heading and desired speed.
+- Inputs: interceptor state topic when threat response is enabled, random seed,
+  speed limits, threat radius.
+- Outputs: `/target/desired_heading`, `/target/desired_speed`.
+
+`target_dynamics_node`
+
+- Purpose: simulates the target as a point-mass vehicle with speed and
+  acceleration limits.
+- Inputs: `/target/desired_heading`, `/target/desired_speed`.
+- Outputs: `/target/state`, target marker, target path marker, TF frame.
+
+`estimator_node`
+
+- Purpose: builds the target measurement stream and publishes a filtered target
+  estimate.
+- Inputs: `/target/state`, measurement noise settings, Kalman filter settings.
+- Outputs: `/target/state_noisy`, `/target/estimated_state`, measurement marker,
+  estimated marker.
+
+`interceptor_guidance_node`
+
+- Purpose: computes velocity commands for the baseline interceptor.
+- Inputs: `/target/estimated_state`, `/interceptor/state`, guidance mode,
+  interceptor speed, interceptor acceleration limit, capture radius.
+- Outputs: `/interceptor/cmd_vel`, `/intercept/marker`.
+
+`interceptor_dynamics_node`
+
+- Purpose: simulates the baseline interceptor as a point-mass vehicle.
+- Inputs: `/interceptor/cmd_vel`.
+- Outputs: `/interceptor/state`, interceptor marker, interceptor path marker,
+  TF frame.
+
+`interceptor_mpc_node`
+
+- Purpose: computes acceleration commands for the MPC interceptor.
+- Inputs: `/target/estimated_state`, `/interceptor_mpc/state`, speed and
+  acceleration limits.
+- Outputs: `/interceptor_mpc/cmd_accel`.
+
+`interceptor_mpc_dynamics_node`
+
+- Purpose: simulates the MPC interceptor with acceleration commands.
+- Inputs: `/interceptor_mpc/cmd_accel`.
+- Outputs: `/interceptor_mpc/state`, MPC interceptor marker, MPC interceptor
+  path marker, TF frame.
+
+`distance_monitor_node`
+
+- Purpose: measures separation between the target and the active interceptor.
+- Inputs: `/target/state` and a configured interceptor state topic.
+- Outputs: `/intercept/distance` or another configured distance topic.
+
+`results_logger_node`
+
+- Purpose: records each run and saves plots plus summary metrics.
+- Inputs: distance topic, controller label, profile name, spawn distance,
+  threat-response setting, output directory.
+- Outputs: `<run_label>.csv`, `<run_label>.json`, `<run_label>.png`.
+
+### Scripts
+
+`compare_results`
+
+- Purpose: aggregates saved run artifacts and produces comparison figures.
+- Inputs: a results directory containing run CSV/JSON/PNG files.
+- Outputs: aggregate comparison PNGs and `aggregate_summary.md`.
+
+Run it with:
+
+```bash
+compare_results --results-dir results/drone_interceptor
+```
+
+or:
+
+```bash
+python3 src/drone_interceptor/scripts/compare_results.py --results-dir results/drone_interceptor
+```
+
+`organize_results`
+
+- Purpose: helps reorganize generated run artifacts into cleaner result folders.
+- Inputs: generated result files.
+- Outputs: moved or grouped result artifacts.
+
+## Saved Artifacts
+
+Each run writes artifacts into `results/drone_interceptor` by default:
+
+- `<run_label>.csv` with `time_s` and `distance_m`
+- `<run_label>.json` with summary metrics
+- `<run_label>.png` with the distance trace
+
+Aggregate plotting generates files such as:
+
+- `aggregate/distance_over_time__*.png`
+- `aggregate/summary_comparison.png`
+- `aggregate/capture_time_comparison.png`
+- `aggregate/min_distance_comparison.png`
+- `aggregate/capture_rate_comparison.png`
+- `aggregate/aggregate_summary.md`
+
 ## Notes
 
 - `rviz2` must be installed for the RViz window to open.
 - `rqt_plot` must be installed for the plot window to open.
-- After code changes, rebuild with `colcon build --packages-select drone_interceptor` and re-source `install/setup.bash`.
+- After code changes, rebuild with `colcon build --packages-select drone_interceptor --symlink-install` and re-source `install/setup.bash`.

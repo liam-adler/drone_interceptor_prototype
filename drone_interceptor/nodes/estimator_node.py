@@ -9,11 +9,13 @@ import numpy as np
 import rclpy
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
+from visualization_msgs.msg import Marker
 
 from drone_interceptor.estimation import (
     ConstantVelocityKalmanFilter,
     KalmanFilterConfig,
 )
+from drone_interceptor.visualization.rviz_markers import build_sphere_marker
 
 
 class EstimatorNode(Node):
@@ -23,6 +25,9 @@ class EstimatorNode(Node):
         self.declare_parameter("input_state_topic", "/target/state")
         self.declare_parameter("measurement_topic", "/target/state_noisy")
         self.declare_parameter("estimated_state_topic", "/target/estimated_state")
+        self.declare_parameter("frame_id", "world")
+        self.declare_parameter("measurement_marker_topic", "/target/measurement_marker")
+        self.declare_parameter("estimated_marker_topic", "/target/estimated_marker")
 
         self.declare_parameter("noise_enabled", False)
         self.declare_parameter("position_noise_stddev", 0.0)
@@ -37,6 +42,11 @@ class EstimatorNode(Node):
         input_state_topic = self.get_string_parameter("input_state_topic")
         measurement_topic = self.get_string_parameter("measurement_topic")
         estimated_state_topic = self.get_string_parameter("estimated_state_topic")
+        self.frame_id = self.get_string_parameter("frame_id")
+        measurement_marker_topic = self.get_string_parameter(
+            "measurement_marker_topic"
+        )
+        estimated_marker_topic = self.get_string_parameter("estimated_marker_topic")
 
         self.noise_enabled = self.get_bool_parameter("noise_enabled")
         self.position_noise_stddev = self.get_nonnegative_float_parameter(
@@ -71,6 +81,16 @@ class EstimatorNode(Node):
 
         self.measurement_pub = self.create_publisher(Odometry, measurement_topic, 10)
         self.estimate_pub = self.create_publisher(Odometry, estimated_state_topic, 10)
+        self.measurement_marker_pub = self.create_publisher(
+            Marker,
+            measurement_marker_topic,
+            10,
+        )
+        self.estimated_marker_pub = self.create_publisher(
+            Marker,
+            estimated_marker_topic,
+            10,
+        )
         self.create_subscription(
             Odometry,
             input_state_topic,
@@ -111,6 +131,15 @@ class EstimatorNode(Node):
             child_frame_id_suffix="_measurement",
         )
         self.measurement_pub.publish(measurement_msg)
+        self.publish_marker(
+            publisher=self.measurement_marker_pub,
+            stamp=msg.header.stamp,
+            position=measured_position,
+            namespace="target_measurement",
+            marker_id=0,
+            scale=0.34,
+            color=(1.0, 0.55, 0.1, 0.9),
+        )
 
         estimated_position = measured_position
         estimated_velocity = measured_velocity
@@ -138,6 +167,15 @@ class EstimatorNode(Node):
             child_frame_id_suffix="_estimated",
         )
         self.estimate_pub.publish(estimate_msg)
+        self.publish_marker(
+            publisher=self.estimated_marker_pub,
+            stamp=msg.header.stamp,
+            position=estimated_position,
+            namespace="target_estimate",
+            marker_id=0,
+            scale=0.32,
+            color=(0.1, 0.9, 0.3, 0.9),
+        )
 
     def compute_dt_seconds(self, msg: Odometry) -> float | None:
         stamp_seconds = self.stamp_to_seconds(msg)
@@ -204,6 +242,28 @@ class EstimatorNode(Node):
         msg.twist.twist.linear.y = float(velocity[1])
         msg.twist.twist.linear.z = float(velocity[2])
         return msg
+
+    def publish_marker(
+        self,
+        *,
+        publisher,
+        stamp,
+        position: np.ndarray,
+        namespace: str,
+        marker_id: int,
+        scale: float,
+        color: tuple[float, float, float, float],
+    ) -> None:
+        marker = build_sphere_marker(
+            stamp=stamp,
+            frame_id=self.frame_id,
+            namespace=namespace,
+            marker_id=marker_id,
+            position=position,
+            scale=scale,
+            color=color,
+        )
+        publisher.publish(marker)
 
     def get_bool_parameter(self, name: str) -> bool:
         return bool(self.get_parameter(name).value)

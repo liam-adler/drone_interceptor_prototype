@@ -11,6 +11,8 @@ class DistanceMetrics:
     last_distance: float | None = None
     min_distance: float | None = None
     capture_time: float | None = None
+    capture_event_count: int = 0
+    was_within_capture_radius: bool = False
     sample_count: int = 0
     samples: list[tuple[float, float]] = field(default_factory=list)
 
@@ -30,10 +32,15 @@ class DistanceMetrics:
         if self.min_distance is None or distance < self.min_distance:
             self.min_distance = distance
 
+        is_within_capture_radius = distance <= self.capture_radius
         capture_just_reached = False
-        if self.capture_time is None and distance <= self.capture_radius:
-            self.capture_time = elapsed
+        if is_within_capture_radius and not self.was_within_capture_radius:
+            self.capture_event_count += 1
             capture_just_reached = True
+            if self.capture_time is None:
+                self.capture_time = elapsed
+
+        self.was_within_capture_radius = is_within_capture_radius
 
         return elapsed, is_first_sample, capture_just_reached
 

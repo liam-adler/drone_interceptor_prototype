@@ -8,9 +8,9 @@ from geometry_msgs.msg import Vector3
 from rclpy.node import Node
 
 from drone_interceptor.capture.radius_capture import is_within_capture_radius
+from drone_interceptor.core.math_utils import NORM_TOLERANCE
 from drone_interceptor.guidance.base import (
     InterceptorControllerBase,
-    NORM_TOLERANCE,
 )
 from drone_interceptor.guidance.lead_pursuit import (
     compute_lead_pursuit_aim_point,

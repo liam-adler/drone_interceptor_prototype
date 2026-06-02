@@ -5,14 +5,13 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
-from geometry_msgs.msg import Vector3
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point, Vector3
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker
 
-from drone_interceptor.core.math_utils import NORM_TOLERANCE, clamp_norm
+from drone_interceptor.core.math_utils import clamp_norm
 from drone_interceptor.visualization.rviz_markers import (
     build_sphere_marker,
     make_color,

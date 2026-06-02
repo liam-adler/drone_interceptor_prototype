@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import numpy as np
-
 from drone_interceptor.core.math_utils import Array3, clamp_norm
 
 

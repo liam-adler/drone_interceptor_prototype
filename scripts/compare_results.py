@@ -16,10 +16,10 @@ os.environ.setdefault(
     str(Path(tempfile.gettempdir()) / "drone_interceptor_mpl"),
 )
 
-import matplotlib
+import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # noqa: E402
 
 
 @dataclass
@@ -95,10 +95,17 @@ def load_run_summaries(results_dir: Path) -> list[RunSummary]:
             RunSummary(
                 name=run_label,
                 controller_label=str(data.get("controller_label", "unknown")),
-                profile=str(data.get("profile_name", parsed.get("profile", "unknown"))),
+                profile=str(
+                    data.get("profile_name", parsed.get("profile", "unknown"))
+                ),
                 threat=(
                     "threat_on"
-                    if bool(data.get("threat_response", parsed.get("threat") == "threat_on"))
+                    if bool(
+                        data.get(
+                            "threat_response",
+                            parsed.get("threat") == "threat_on",
+                        )
+                    )
                     else "threat_off"
                 ),
                 spawn_distance=format_spawn_distance(
@@ -227,7 +234,9 @@ def create_distance_over_time_plots(
         if not runs:
             continue
 
-        max_elapsed = max(run.elapsed_s for run in runs if run.elapsed_s == run.elapsed_s)
+        max_elapsed = max(
+            run.elapsed_s for run in runs if run.elapsed_s == run.elapsed_s
+        )
         if max_elapsed <= 0.0:
             continue
 
@@ -624,7 +633,8 @@ def write_summary_table(summaries: list[RunSummary], output_dir: Path) -> Path:
     lines = [
         "# Aggregate Comparison",
         "",
-        "| Configuration | Controller | Runs | Capture Rate | Avg Capture Time [s] | Avg Min Distance [m] |",
+        "| Configuration | Controller | Runs | Capture Rate | "
+        "Avg Capture Time [s] | Avg Min Distance [m] |",
         "|---|---:|---:|---:|---:|---:|",
     ]
 

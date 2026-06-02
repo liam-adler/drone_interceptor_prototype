@@ -9,7 +9,7 @@ from rclpy.node import Node
 from visualization_msgs.msg import Marker
 
 from drone_interceptor.guidance.base import InterceptorControllerBase
-from drone_interceptor.guidance.mpc_pursuit import (
+from drone_interceptor.guidance.mpc_guidance import (
     AccelerationMPC,
     MpcConfig,
     MpcWeights,

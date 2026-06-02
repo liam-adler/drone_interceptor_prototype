@@ -275,7 +275,7 @@ class PointMassDynamicsNode(Node):
     def publish_path_marker(self, now: rclpy.time.Time) -> None:
         self.path_points.append(self.state.position.copy())
         if len(self.path_points) > self.path_max_length:
-            self.path_points = self.path_points[-self.path_max_length :]
+            self.path_points = self.path_points[-self.path_max_length:]
 
         marker = build_line_strip_marker(
             stamp=now.to_msg(),

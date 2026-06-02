@@ -11,15 +11,15 @@ os.environ.setdefault(
     str(Path(tempfile.gettempdir()) / "drone_interceptor_mpl"),
 )
 
-import matplotlib
-import rclpy
-from rclpy.node import Node
-from std_msgs.msg import Float32
+import matplotlib  # noqa: E402
+import rclpy  # noqa: E402
+from rclpy.node import Node  # noqa: E402
+from std_msgs.msg import Float32  # noqa: E402
 
 matplotlib.use("Agg")
 
-from drone_interceptor.evaluation.metrics import DistanceMetrics
-from drone_interceptor.evaluation.result_logger import (
+from drone_interceptor.evaluation.metrics import DistanceMetrics  # noqa: E402
+from drone_interceptor.evaluation.result_logger import (  # noqa: E402
     write_distance_csv,
     write_distance_plot,
     write_summary_json,
@@ -137,6 +137,7 @@ class ResultsLoggerNode(Node):
         self.get_logger().info(
             f"[{self.controller_label}] final summary: "
             f"captured={capture_status}, "
+            f"capture_events={self.metrics.capture_event_count}, "
             f"min_distance={min_distance:.3f} m, "
             f"final_distance={last_distance:.3f} m, "
             f"elapsed={elapsed:.2f} s, "
@@ -193,6 +194,7 @@ class ResultsLoggerNode(Node):
             "random_seed": self.get_int_parameter("random_seed"),
             "captured": self.metrics.capture_time is not None,
             "capture_time_s": self.metrics.capture_time,
+            "capture_event_count": self.metrics.capture_event_count,
             "min_distance_m": min_distance,
             "final_distance_m": last_distance,
             "elapsed_s": elapsed,

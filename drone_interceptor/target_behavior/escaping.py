@@ -1,2 +1,0 @@
-"""Placeholder escaping target behavior."""
-

@@ -7,8 +7,8 @@ launch_defaults:
   target_input_state_topic: /target/state
   target_measurement_topic: /target/state_noisy
   target_estimated_state_topic: /target/estimated_state
-  target_noise_enabled: false
-  target_noise_position_stddev: 0.0
+  target_noise_enabled: true
+  target_noise_position_stddev: 0.1
   target_filter_enabled: true
   target_filter_process_accel_stddev: 2.0
   target_filter_measurement_position_stddev: -1.0

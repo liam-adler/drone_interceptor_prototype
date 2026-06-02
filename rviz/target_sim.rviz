@@ -51,6 +51,30 @@ Visualization Manager:
       Value: true
     - Class: rviz_default_plugins/Marker
       Enabled: true
+      Name: Target Measurement
+      Namespaces:
+        target_measurement: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /target/measurement_marker
+      Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: Target Estimate
+      Namespaces:
+        target_estimate: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /target/estimated_marker
+      Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
       Name: Interceptor
       Namespaces:
         interceptor: true

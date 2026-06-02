@@ -1,2 +1,0 @@
-"""Placeholder probabilistic capture logic."""
-
