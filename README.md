@@ -40,7 +40,6 @@ From the workspace root:
 
 ```bash
 source /opt/ros/humble/setup.bash
-cd /home/liam/ros2_drone_intercept_ws
 colcon build --packages-select drone_interceptor --symlink-install
 source install/setup.bash
 ```
@@ -48,7 +47,6 @@ source install/setup.bash
 If you only changed Python code and want to rebuild quickly:
 
 ```bash
-cd /home/liam/ros2_drone_intercept_ws
 colcon build --packages-select drone_interceptor --symlink-install
 source install/setup.bash
 ```
@@ -56,7 +54,6 @@ source install/setup.bash
 Run tests:
 
 ```bash
-cd /home/liam/ros2_drone_intercept_ws
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 colcon test --packages-select drone_interceptor
@@ -80,67 +77,51 @@ Default behavior:
 - RViz opens automatically
 - `rqt_plot` opens automatically
 
-### Baseline Guidance Controller
+### Launch Options
 
-Use the baseline controller with the available guidance modes:
-
-```bash
-ros2 launch drone_interceptor target_sim.launch.py controller_mode:=baseline guidance_mode:=pure_pursuit
-ros2 launch drone_interceptor target_sim.launch.py controller_mode:=baseline guidance_mode:=lead_pursuit
-ros2 launch drone_interceptor target_sim.launch.py controller_mode:=baseline guidance_mode:=acceleration_aware_lead_pursuit
-```
-
-You can also use the configured controller presets:
+Use the base launch command and add any arguments you want:
 
 ```bash
-ros2 launch drone_interceptor target_sim.launch.py controller_preset:=baseline_pure_pursuit
-ros2 launch drone_interceptor target_sim.launch.py controller_preset:=baseline_lead_pursuit
-ros2 launch drone_interceptor target_sim.launch.py controller_preset:=baseline_acceleration_aware
+ros2 launch drone_interceptor target_sim.launch.py <argument>:=<value> <argument>:=<value>
 ```
 
-### MPC Controller
+The following arguments can be passed:
+
+- `controller_mode:=baseline`
+- `controller_mode:=mpc`
+- `guidance_mode:=pure_pursuit`
+- `guidance_mode:=lead_pursuit`
+- `guidance_mode:=acceleration_aware_lead_pursuit`
+- `controller_preset:=baseline_pure_pursuit`
+- `controller_preset:=baseline_lead_pursuit`
+- `controller_preset:=baseline_acceleration_aware`
+- `controller_preset:=mpc_default`
+- `profile:=matched`
+- `profile:=target_faster`
+- `profile:=target_more_maneuverable`
+- `profile:=target_advantaged`
+- `threat_response:=false`
+- `spawn_distance:=40.0`
+- `random_seed:=4`
+- `scenario:=target_advantaged_close_start`
+- `scenario:=target_advantaged_no_threat`
+- `scenario:=target_advantaged_medium_noise`
+- `open_rviz:=false`
+- `open_plot:=false`
+- `output_dir:=results/my_experiments`
+
+Examples:
 
 ```bash
 ros2 launch drone_interceptor target_sim.launch.py controller_mode:=mpc
-```
-
-Or with the preset:
-
-```bash
 ros2 launch drone_interceptor target_sim.launch.py controller_preset:=mpc_default
-```
-
-### Different Target/Vehicle Profiles
-
-```bash
-ros2 launch drone_interceptor target_sim.launch.py profile:=matched
-ros2 launch drone_interceptor target_sim.launch.py profile:=target_faster
-ros2 launch drone_interceptor target_sim.launch.py profile:=target_more_maneuverable
-ros2 launch drone_interceptor target_sim.launch.py profile:=target_advantaged
-```
-
-### Scenario And Behavior Variants
-
-```bash
-ros2 launch drone_interceptor target_sim.launch.py threat_response:=false
-ros2 launch drone_interceptor target_sim.launch.py spawn_distance:=40.0
-ros2 launch drone_interceptor target_sim.launch.py random_seed:=4
-ros2 launch drone_interceptor target_sim.launch.py scenario:=target_advantaged_close_start
-ros2 launch drone_interceptor target_sim.launch.py scenario:=target_advantaged_no_threat
-ros2 launch drone_interceptor target_sim.launch.py scenario:=target_advantaged_medium_noise
-```
-
-### Headless Or Lighter Runs
-
-```bash
+ros2 launch drone_interceptor target_sim.launch.py controller_mode:=baseline guidance_mode:=lead_pursuit
+ros2 launch drone_interceptor target_sim.launch.py controller_preset:=baseline_acceleration_aware
+ros2 launch drone_interceptor target_sim.launch.py controller_mode:=baseline guidance_mode:=pure_pursuit profile:=matched
+ros2 launch drone_interceptor target_sim.launch.py controller_preset:=mpc_default scenario:=target_advantaged_close_start
 ros2 launch drone_interceptor target_sim.launch.py open_rviz:=false
 ros2 launch drone_interceptor target_sim.launch.py open_plot:=false
 ros2 launch drone_interceptor target_sim.launch.py open_rviz:=false open_plot:=false
-```
-
-### Output Location Override
-
-```bash
 ros2 launch drone_interceptor target_sim.launch.py output_dir:=results/my_experiments
 ```
 
