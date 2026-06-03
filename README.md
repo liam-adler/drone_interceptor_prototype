@@ -17,7 +17,6 @@ Typical workflow:
 
 ```bash
 source /opt/ros/humble/setup.bash
-cd /home/liam/ros2_drone_intercept_ws
 colcon build --packages-select drone_interceptor --symlink-install
 source install/setup.bash
 ros2 launch drone_interceptor target_sim.launch.py
@@ -25,14 +24,19 @@ ros2 launch drone_interceptor target_sim.launch.py
 
 What the package does during a run:
 
-- The target chooses a heading and speed.
-- The target dynamics node turns those commands into smooth motion.
-- The estimator can add measurement noise and publish a filtered target state.
-- The interceptor controller reads the target/interceptor states and commands a
-  chase action.
-- The interceptor dynamics node simulates the interceptor motion.
-- A distance monitor publishes separation over time.
-- A results logger saves CSV, JSON, and PNG outputs for later comparison.
+- The launch file resolves a scenario, controller preset, profile, seed, and
+  output settings from the YAML configs and any command-line overrides.
+- The target behavior node generates desired heading and speed commands.
+- The target dynamics node converts those commands into the target state plus
+  RViz markers and TF updates.
+- The estimator publishes a noisy target measurement and a filtered target
+  estimate for downstream control.
+- The launch selects either the baseline guidance+dynamics branch or the
+  MPC+dynamics branch for the interceptor.
+- A shared distance monitor publishes target-to-interceptor separation on
+  `/intercept/distance`.
+- The results logger records that distance stream and writes CSV, JSON, and PNG
+  artifacts when the run ends.
 
 ## Build Commands
 
@@ -40,13 +44,6 @@ From the workspace root:
 
 ```bash
 source /opt/ros/humble/setup.bash
-colcon build --packages-select drone_interceptor --symlink-install
-source install/setup.bash
-```
-
-If you only changed Python code and want to rebuild quickly:
-
-```bash
 colcon build --packages-select drone_interceptor --symlink-install
 source install/setup.bash
 ```
@@ -79,109 +76,82 @@ Default behavior:
 
 ### Launch Options
 
-Use the base launch command and add any arguments you want:
 
 ```bash
 ros2 launch drone_interceptor target_sim.launch.py <argument>:=<value> <argument>:=<value>
 ```
 
-The following arguments can be passed:
+The following launch arguments can be passed:
 
-- `controller_mode:=baseline`
-- `controller_mode:=mpc`
-- `guidance_mode:=pure_pursuit`
-- `guidance_mode:=lead_pursuit`
-- `guidance_mode:=acceleration_aware_lead_pursuit`
-- `controller_preset:=baseline_pure_pursuit`
-- `controller_preset:=baseline_lead_pursuit`
-- `controller_preset:=baseline_acceleration_aware`
-- `controller_preset:=mpc_default`
-- `profile:=matched`
-- `profile:=target_faster`
-- `profile:=target_more_maneuverable`
-- `profile:=target_advantaged`
-- `threat_response:=false`
-- `spawn_distance:=40.0`
-- `random_seed:=4`
-- `scenario:=target_advantaged_close_start`
-- `scenario:=target_advantaged_no_threat`
-- `scenario:=target_advantaged_medium_noise`
-- `open_rviz:=false`
-- `open_plot:=false`
-- `output_dir:=results/my_experiments`
+- `experiment:=baseline_pure_pursuit_advantaged | baseline_lead_pursuit_advantaged | baseline_acceleration_aware_advantaged | mpc_advantaged`
+- `scenario:=matched_default | target_faster_default | target_more_maneuverable_default | target_advantaged_default | target_advantaged_close_start | target_advantaged_no_threat | target_advantaged_medium_noise`
+- `controller_preset:=baseline_pure_pursuit | baseline_lead_pursuit | baseline_acceleration_aware | mpc_default`
+- `profile:=matched | target_faster | target_more_maneuverable | target_advantaged`
+- `controller_mode:=baseline | mpc`
+- `guidance_mode:=pure_pursuit | lead_pursuit | acceleration_aware_lead_pursuit`
+- `threat_response:=true | false`
+- `spawn_distance:=[float]`
+- `random_seed:=[int]`
+- `open_rviz:=true | false`
+- `open_plot:=true | false`
+- `output_dir:=[path/string]`
 
-Examples:
 
-```bash
-ros2 launch drone_interceptor target_sim.launch.py controller_mode:=mpc
-ros2 launch drone_interceptor target_sim.launch.py controller_preset:=mpc_default
-ros2 launch drone_interceptor target_sim.launch.py controller_mode:=baseline guidance_mode:=lead_pursuit
-ros2 launch drone_interceptor target_sim.launch.py controller_preset:=baseline_acceleration_aware
-ros2 launch drone_interceptor target_sim.launch.py controller_mode:=baseline guidance_mode:=pure_pursuit profile:=matched
-ros2 launch drone_interceptor target_sim.launch.py controller_preset:=mpc_default scenario:=target_advantaged_close_start
-ros2 launch drone_interceptor target_sim.launch.py open_rviz:=false
-ros2 launch drone_interceptor target_sim.launch.py open_plot:=false
-ros2 launch drone_interceptor target_sim.launch.py open_rviz:=false open_plot:=false
-ros2 launch drone_interceptor target_sim.launch.py output_dir:=results/my_experiments
-```
-
-### Useful ROS 2 Runtime Checks
-
-Show all running nodes:
-
-```bash
-ros2 node list
-```
-
-Show all topics:
-
-```bash
-ros2 topic list
-```
-
-Watch baseline controller commands:
-
-```bash
-ros2 topic echo /interceptor/cmd_vel
-```
-
-Watch the interceptor state:
-
-```bash
-ros2 topic echo /interceptor/state
-```
-
-Watch the target estimate used by the baseline controller:
-
-```bash
-ros2 topic echo /target/estimated_state
-```
-
-Watch the live distance:
-
-```bash
-ros2 topic echo /intercept/distance
-```
-
-Open the distance plot manually:
-
-```bash
-ros2 run rqt_plot rqt_plot
-```
-
-Useful plot fields:
-
-```text
-/intercept/distance/data
-/intercept/distance_mpc/data
-```
-
-## Screenshot
+## Performance
 
 The figure below shows the averaged overlay comparison across five 60-second
-runs for each guidance/controller method.
+runs for each guidance/controller method. The comparison used the
+`target_advantaged_default` scenario with `profile:=target_advantaged`,
+`spawn_distance:=30.0`, `threat_response:=true`, and five runs per method. The
+evaluated presets were `baseline_pure_pursuit`, `baseline_lead_pursuit`,
+`baseline_acceleration_aware`, and `mpc_default`, using seeds `0` through `19`
+across the full batch.
+
+Command used to generate the comparison data and averaged overlay:
+
+```bash
+run_experiment \
+  --results-dir results/drone_interceptor_average_runs \
+  --duration-s 60 \
+  --runs-per-controller 5 \
+  --controllers baseline_pure_pursuit baseline_lead_pursuit baseline_acceleration_aware mpc \
+  --profile target_advantaged \
+  --scenario target_advantaged_default \
+  --spawn-distance 30.0 \
+  --threat-response true \
+  --seed-start 0
+
+plot_results --results-dir results/drone_interceptor_average_runs
+```
 
 ![Average controller comparison](docs/average_overlay_comparison.png)
+
+## Pipeline Summary
+
+At startup, the launch file configures the scenario, controller mode, noise
+settings, estimator topics, and output paths from the config files, then starts
+the target, estimator, interceptor, monitoring, logging, and optional RViz and
+`rqt_plot` processes together. The target behavior node samples a maneuver,
+publishes `/target/desired_heading` and `/target/desired_speed`, and the target
+dynamics node turns those commands into `/target/state` while also publishing
+markers and TF for visualization.
+
+That target state then flows through the estimator, which publishes both a
+noisy measurement and a filtered estimate to simulate actual sensor data. The
+interceptor side consumes the estimated target state and follows one of two
+branches: the baseline branch uses `interceptor_guidance_node` to produce
+`/interceptor/cmd_vel`, while the MPC branch uses `interceptor_mpc_node` to
+produce `/interceptor_mpc/cmd_accel`. Their respective dynamics nodes convert
+those commands into interceptor motion, the distance monitor publishes
+`/intercept/distance`, and the results logger stores the run history plus
+summary artifacts for later comparison.
+
+## ROS Graph Overview
+
+The diagram below summarizes the main nodes, topic groups, and data flow in the
+baseline interception stack.
+
+![ROS graph overview](docs/node_graph_overview.png)
 
 ## What The Nodes And Scripts Do
 
@@ -276,6 +246,23 @@ python3 src/drone_interceptor/scripts/compare_results.py --results-dir results/d
 - Inputs: generated result files.
 - Outputs: moved or grouped result artifacts.
 
+`plot_results`
+
+- Purpose: creates averaged overlay plots and summary tables from repeated
+  controller runs.
+- Inputs: a results directory such as `results/drone_interceptor_average_runs`
+  containing run CSV/JSON files.
+- Outputs: `average_overlay_comparison.png` and
+  `average_overlay_summary.md`.
+
+`run_experiment`
+
+- Purpose: launches predefined experiment configurations for repeatable runs.
+
+`record_showcase`
+
+- Purpose: records showcase runs for demonstration assets.
+
 ## Saved Artifacts
 
 Each run writes artifacts into `results/drone_interceptor` by default:
@@ -292,6 +279,8 @@ Aggregate plotting generates files such as:
 - `aggregate/min_distance_comparison.png`
 - `aggregate/capture_rate_comparison.png`
 - `aggregate/aggregate_summary.md`
+- `average_overlay/average_overlay_comparison.png`
+- `average_overlay/average_overlay_summary.md`
 
 ## Notes
 

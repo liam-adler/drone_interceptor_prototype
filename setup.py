@@ -19,12 +19,19 @@ setup(
         (os.path.join("share", package_name, "launch"), glob("launch/*.launch.py")),
         (os.path.join("share", package_name, "rviz"), glob("rviz/*.rviz")),
     ],
-    install_requires=["setuptools"],
+    install_requires=[
+        "setuptools",
+        "numpy",
+        "PyYAML",
+    ],
     zip_safe=True,
     maintainer="liam",
     maintainer_email="liam.dlr@icloud.com",
-    description="TODO: Package description",
-    license="TODO: License declaration",
+    description=(
+        "ROS 2 simulation package for target-interceptor pursuit experiments "
+        "with baseline and MPC controllers."
+    ),
+    license="Apache-2.0",
     extras_require={
         "test": [
             "pytest",
