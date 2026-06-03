@@ -262,28 +262,3 @@ python3 src/drone_interceptor/scripts/compare_results.py --results-dir results/d
 `record_showcase`
 
 - Purpose: records showcase runs for demonstration assets.
-
-## Saved Artifacts
-
-Each run writes artifacts into `results/drone_interceptor` by default:
-
-- `<run_label>.csv` with `time_s` and `distance_m`
-- `<run_label>.json` with summary metrics
-- `<run_label>.png` with the distance trace
-
-Aggregate plotting generates files such as:
-
-- `aggregate/distance_over_time__*.png`
-- `aggregate/summary_comparison.png`
-- `aggregate/capture_time_comparison.png`
-- `aggregate/min_distance_comparison.png`
-- `aggregate/capture_rate_comparison.png`
-- `aggregate/aggregate_summary.md`
-- `average_overlay/average_overlay_comparison.png`
-- `average_overlay/average_overlay_summary.md`
-
-## Notes
-
-- `rviz2` must be installed for the RViz window to open.
-- `rqt_plot` must be installed for the plot window to open.
-- After code changes, rebuild with `colcon build --packages-select drone_interceptor --symlink-install` and re-source `install/setup.bash`.
