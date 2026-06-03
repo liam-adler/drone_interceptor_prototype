@@ -1,13 +1,13 @@
 # Drone Interceptor
 
-This package is a ROS 2 simulation of a target drone and an interceptor drone.
+This package is a ROS 2 Humble simulation of a target drone and an interceptor drone.
 It supports both a baseline guidance controller and an MPC-based controller so
 you can compare how each interceptor behaves against the same target. 
 Note that there may be bugs and that the MPC is currently quite bad and untuned.
 
 ## How To Use The Package
 
-1. Source ROS 2.
+1. Source ROS 2 Humble.
 2. Build the package from the workspace root.
 3. Source the workspace overlay.
 4. Launch the simulation with the controller and scenario you want.
