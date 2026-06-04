@@ -96,6 +96,86 @@ The following launch arguments can be passed:
 - `open_plot:=true | false`
 - `output_dir:=[path/string]`
 
+## Guidance Math Summary
+
+The baseline interceptor uses a fixed-speed pursuit command. After choosing an
+aim point `p_aim`, it sends
+
+
+v_cmd = v_I,max * (p_aim - p_I) / ||p_aim - p_I||
+
+
+where `p_I` is interceptor position and `v_I,max` is the configured interceptor
+speed.
+
+The guidance modes differ only in how `p_aim` is chosen:
+
+- `pure_pursuit`: aim directly at the current target position,
+  `p_aim = p_T`.
+- `lead_pursuit`: assume constant target velocity and solve for intercept time
+  `t_go` from
+
+
+||p_T + v_T t - p_I|| = v_I,max t
+```
+
+  which becomes the quadratic
+
+
+(|v_T|^2 - v_I,max^2) t^2 + 2 (p_T - p_I)·v_T t + |p_T - p_I|^2 = 0.
+
+
+  The controller takes the smallest positive root, clips it to the configured
+  prediction window, and aims at
+  `p_aim = p_T + v_T t_go`.
+- `acceleration_aware_lead_pursuit`: starts from the same lead-pursuit
+  intercept time, then adds an acceleration settling term so the interceptor
+  leads farther ahead when it is still building speed:
+
+
+t_effective = t_go + k_a * (v_I,max - ||v_I||) / a_I,max
+
+
+  clipped to the same prediction bounds, with aim point
+  `p_aim = p_T + v_T t_effective`.
+
+If the interceptor is already inside the capture radius, the node stops
+steering toward a future point and instead matches the target velocity so it
+stays with the target.
+
+## MPC Summary
+
+The MPC controller uses a double-integrator interceptor model with state
+
+
+x = [p_x, p_y, p_z, v_x, v_y, v_z]
+
+
+and control input
+
+
+u = [a_x, a_y, a_z].
+
+
+Over a finite horizon, it predicts the target forward with a constant-velocity
+model, rolls the interceptor state forward with candidate accelerations, and
+optimizes the acceleration sequence at every control step. The cost function
+penalizes:
+
+- position error to the predicted target
+- relative velocity error
+- being outside the capture radius
+- non-closing motion, via positive radial closing rate
+- control effort and sudden control changes
+- terminal position and terminal relative-velocity error
+
+In plain terms, the MPC is trying to reach the target quickly, keep closing
+instead of drifting away, and do so with smooth bounded accelerations. The
+solver here is a small projected-gradient method: after each gradient step it
+projects the candidate accelerations back onto the allowed acceleration limit,
+and the rollout also enforces the configured speed and altitude bounds. The
+first optimized acceleration is published, then the whole process repeats on
+the next update with fresh state estimates.
 
 ## Performance
 
