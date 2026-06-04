@@ -102,9 +102,9 @@ The following launch arguments can be passed:
 The baseline interceptor uses a fixed-speed pursuit command. After choosing an
 aim point `p_aim`, it sends
 
-
+```text
 v_cmd = v_I,max * (p_aim - p_I) / ||p_aim - p_I||
-
+```
 
 where `p_I` is interceptor position and `v_I,max` is the configured interceptor
 speed.
@@ -116,15 +116,15 @@ The guidance modes differ only in how `p_aim` is chosen:
 - `lead_pursuit`: assume constant target velocity and solve for intercept time
   `t_go` from
 
-
+```text
 ||p_T + v_T t - p_I|| = v_I,max t
 ```
 
   which becomes the quadratic
 
-
+```text
 (|v_T|^2 - v_I,max^2) t^2 + 2 (p_T - p_I)·v_T t + |p_T - p_I|^2 = 0.
-
+```
 
   The controller takes the smallest positive root, clips it to the configured
   prediction window, and aims at
@@ -133,9 +133,9 @@ The guidance modes differ only in how `p_aim` is chosen:
   intercept time, then adds an acceleration settling term so the interceptor
   leads farther ahead when it is still building speed:
 
-
+```text
 t_effective = t_go + k_a * (v_I,max - ||v_I||) / a_I,max
-
+```
 
   clipped to the same prediction bounds, with aim point
   `p_aim = p_T + v_T t_effective`.
@@ -148,15 +148,15 @@ stays with the target.
 
 The MPC controller uses a double-integrator interceptor model with state
 
-
+```text
 x = [p_x, p_y, p_z, v_x, v_y, v_z]
-
+```
 
 and control input
 
-
+```text
 u = [a_x, a_y, a_z].
-
+```
 
 Over a finite horizon, it predicts the target forward with a constant-velocity
 model, rolls the interceptor state forward with candidate accelerations, and
