@@ -425,10 +425,3 @@ python3 src/drone_interceptor/scripts/compare_results.py --results-dir results/d
 - Inputs: experiment selection, controller list, scenario/profile overrides,
   seed range, and output directory settings.
 - Outputs: repeated run artifacts in the chosen results directory.
-
-`record_showcase`
-
-- Purpose: records showcase runs for demonstration assets.
-- Inputs: controller selection, launch overrides, recording duration, and an
-  output directory for saved videos.
-- Outputs: recorded showcase `.mp4` files.

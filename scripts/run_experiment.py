@@ -27,6 +27,8 @@ CONTROLLERS: dict[str, list[str]] = {
     ],
 }
 
+DEFAULT_WORKSPACE = Path(__file__).resolve().parents[3]
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -37,8 +39,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--workspace",
-        default="/home/liam/ros2_drone_intercept_ws",
-        help="ROS 2 workspace root.",
+        default=str(DEFAULT_WORKSPACE),
+        help="ROS 2 workspace root. Defaults to the repository workspace.",
     )
     parser.add_argument(
         "--results-dir",

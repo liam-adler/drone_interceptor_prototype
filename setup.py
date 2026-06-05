@@ -54,7 +54,6 @@ setup(
             "compare_results = scripts.compare_results:main",
             "organize_results = scripts.organize_results:main",
             "plot_results = scripts.plot_results:main",
-            "record_showcase = scripts.record_showcase:main",
             "run_experiment = scripts.run_experiment:main",
         ],
     },
