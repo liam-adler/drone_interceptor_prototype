@@ -5,6 +5,8 @@ It supports both a baseline guidance controller and an MPC-based controller so
 you can compare how each interceptor behaves against the same target. 
 Note that there may be bugs and that the MPC is currently quite bad and untuned.
 
+![Example interceptor](docs/Example_interceptor.png)
+
 ## How To Use The Package
 
 1. Source ROS 2 Humble.
