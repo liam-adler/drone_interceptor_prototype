@@ -16,7 +16,6 @@ Note that there may be bugs and that the MPC is currently quite bad and untuned.
 5. Watch the motion in RViz, inspect distances with `rqt_plot`, and review saved
    result artifacts in `results/drone_interceptor`.
 
-Typical workflow:
 
 ```bash
 source /opt/ros/humble/setup.bash
