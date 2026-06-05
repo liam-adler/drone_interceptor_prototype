@@ -104,7 +104,7 @@ The baseline interceptor uses a fixed-speed pursuit command. After choosing an
 aim point `p_aim`, it sends
 
 ```math
-v_{\mathrm{cmd}} = v_{I,\max}\frac{p_{\mathrm{aim}} - p_I}{\lVert p_{\mathrm{aim}} - p_I \rVert}
+\mathbf{v}_{\mathrm{cmd}} = v_{I,\max}\frac{\mathbf{p}_{\mathrm{aim}} - \mathbf{p}_I}{\left\lVert \mathbf{p}_{\mathrm{aim}} - \mathbf{p}_I \right\rVert}
 ```
 
 where `p_I` is interceptor position and `v_I,max` is the configured interceptor
@@ -118,13 +118,13 @@ The guidance modes differ only in how `p_aim` is chosen:
   `t_go` from
 
 ```math
-\left\lVert p_T + v_T t - p_I \right\rVert = v_{I,\max} t
+\left\lVert \mathbf{p}_T + \mathbf{v}_T t - \mathbf{p}_I \right\rVert = v_{I,\max} t
 ```
 
   which becomes the quadratic
 
 ```math
-\left(\lVert v_T \rVert^2 - v_{I,\max}^2\right)t^2 + 2(p_T - p_I)\cdot v_T\, t + \lVert p_T - p_I \rVert^2 = 0
+\left(\left\lVert \mathbf{v}_T \right\rVert^2 - v_{I,\max}^2\right)t^2 + 2\left(\mathbf{p}_T - \mathbf{p}_I\right)\cdot \mathbf{v}_T\, t + \left\lVert \mathbf{p}_T - \mathbf{p}_I \right\rVert^2 = 0
 ```
 
   The controller takes the smallest positive root, clips it to the configured
@@ -135,7 +135,7 @@ The guidance modes differ only in how `p_aim` is chosen:
   leads farther ahead when it is still building speed:
 
 ```math
-t_{\mathrm{effective}} = t_{\mathrm{go}} + k_a\frac{v_{I,\max} - \lVert v_I \rVert}{a_{I,\max}}
+t_{\mathrm{effective}} = t_{\mathrm{go}} + k_a\frac{v_{I,\max} - \left\lVert \mathbf{v}_I \right\rVert}{a_{I,\max}}
 ```
 
   clipped to the same prediction bounds, with aim point
@@ -150,13 +150,13 @@ stays with the target.
 The MPC controller uses a double-integrator interceptor model with state
 
 ```math
-x = [p_x,\, p_y,\, p_z,\, v_x,\, v_y,\, v_z]
+\mathbf{x} = [p_x,\, p_y,\, p_z,\, v_x,\, v_y,\, v_z]
 ```
 
 and control input
 
 ```math
-u = [a_x,\, a_y,\, a_z]
+\mathbf{u} = [a_x,\, a_y,\, a_z]
 ```
 
 Over a finite horizon, it predicts the target forward with a constant-velocity
