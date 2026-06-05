@@ -185,8 +185,11 @@ the next update with fresh state estimates.
 The clips below show one representative run for each controller in the
 `target_advantaged_default` scenario.
 
-Note: the videos can look a bit laggy in the README because of compression.
-The underlying simulation playback is smoother than the embedded clips suggest.
+GitHub does not render embedded video players in README files, so the clips are
+linked below instead of shown inline.
+
+Note: the videos can look a bit laggy because of compression. The underlying
+simulation playback is smoother than the recorded clips suggest.
 
 Marker key used in the videos:
 
@@ -206,28 +209,28 @@ Marker key used in the videos:
 Represents the `baseline_pure_pursuit` controller, where the interceptor aims
 directly at the target's current position.
 
-<video src="docs/pure_pursuit_36s.mp4" controls preload="metadata"></video>
+[Watch the pure pursuit video](docs/pure_pursuit_36s.mp4)
 
 ### Lead Pursuit
 
 Represents the `baseline_lead_pursuit` controller, where the interceptor aims
 at a predicted intercept point based on the target's current velocity.
 
-<video src="docs/lead_pursuit_36s.mp4" controls preload="metadata"></video>
+[Watch the lead pursuit video](docs/lead_pursuit_36s.mp4)
 
 ### Acceleration-Aware Lead Pursuit
 
 Represents the `baseline_acceleration_aware` controller, where the predicted
 intercept point is adjusted to account for interceptor acceleration limits.
 
-<video src="docs/accel_aw_lead_pursuit_36s.mp4" controls preload="metadata"></video>
+[Watch the acceleration-aware lead pursuit video](docs/accel_aw_lead_pursuit_36s.mp4)
 
 ### MPC
 
 Represents the `mpc_default` controller, where the interceptor optimizes a
 short acceleration horizon instead of following a fixed pursuit law.
 
-<video src="docs/mpc_36s.mp4" controls preload="metadata"></video>
+[Watch the MPC video](docs/mpc_36s.mp4)
 
 The figure below shows the averaged overlay comparison across five 60-second
 runs for each guidance/controller method. The comparison used the
