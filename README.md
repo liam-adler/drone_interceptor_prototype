@@ -272,9 +272,8 @@ plot_results --results-dir results/drone_interceptor_average_runs
 ## Areas To Improve
 
 - Dynamics and simulation fidelity: replace the current simplified point-mass
-  behavior with a more realistic vehicle model, including better actuator
-  limits, latency, turn-rate constraints, and disturbance models such as wind
-  or model mismatch.
+  behavior with a more realistic drone model, including latency, turn-rate
+  constraints, and disturbance models such as wind.
 - Filtering and state estimation: improve the estimator so it handles noisy and
   maneuvering targets more robustly. Possible next steps include better process
   models, adaptive noise tuning, multi-rate filtering, or moving beyond the
@@ -283,9 +282,8 @@ plot_results --results-dir results/drone_interceptor_average_runs
 - MPC quality and tuning: the current MPC works as a basic proof of concept,
   but it still needs better tuning and formulation work. Useful improvements
   could include a better target prediction model, improved cost weighting,
-  longer or adaptive horizons, terminal constraints/costs, warm-starting,
-  better numerical optimization, and explicit robustness against estimation
-  error and aggressive target maneuvers.
+  longer or adaptive horizons, terminal constraints/costs, and explicit
+  robustness against estimation error and aggressive target maneuvers.
 - Alternative guidance/control approaches: add more advanced methods beyond the
   current pursuit laws and MPC. One interesting direction would be adversarial
   reinforcement learning, where the interceptor and target policies are trained
