@@ -180,6 +180,55 @@ the next update with fresh state estimates.
 
 ## Performance
 
+### Controller Videos
+
+The clips below show one representative run for each controller in the
+`target_advantaged_default` scenario.
+
+Note: the videos can look a bit laggy in the README because of compression.
+The underlying simulation playback is smoother than the embedded clips suggest.
+
+Marker key used in the videos:
+
+- Red sphere and red trail: true target state and target path.
+- Blue sphere and blue trail: baseline interceptor state and path.
+- Green-teal sphere and green-teal trail: MPC interceptor state and path.
+- Orange sphere/trail: noisy target measurement and, in the MPC clip, the
+  predicted target trajectory over the optimization horizon.
+- Green sphere: filtered target estimate used by the controller. If it is not
+  visible, it is usually inside the red target marker.
+- Yellow sphere: current intercept aim point.
+- Bright green sphere: capture/intercept point once the interceptor is within
+  the capture radius.
+
+### Pure Pursuit
+
+Represents the `baseline_pure_pursuit` controller, where the interceptor aims
+directly at the target's current position.
+
+<video src="docs/pure_pursuit_36s.mp4" controls preload="metadata"></video>
+
+### Lead Pursuit
+
+Represents the `baseline_lead_pursuit` controller, where the interceptor aims
+at a predicted intercept point based on the target's current velocity.
+
+<video src="docs/lead_pursuit_36s.mp4" controls preload="metadata"></video>
+
+### Acceleration-Aware Lead Pursuit
+
+Represents the `baseline_acceleration_aware` controller, where the predicted
+intercept point is adjusted to account for interceptor acceleration limits.
+
+<video src="docs/accel_aw_lead_pursuit_36s.mp4" controls preload="metadata"></video>
+
+### MPC
+
+Represents the `mpc_default` controller, where the interceptor optimizes a
+short acceleration horizon instead of following a fixed pursuit law.
+
+<video src="docs/mpc_36s.mp4" controls preload="metadata"></video>
+
 The figure below shows the averaged overlay comparison across five 60-second
 runs for each guidance/controller method. The comparison used the
 `target_advantaged_default` scenario with `profile:=target_advantaged`,
