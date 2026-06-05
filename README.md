@@ -284,6 +284,10 @@ plot_results --results-dir results/drone_interceptor_average_runs
   current pursuit laws and MPC. One interesting direction would be adversarial
   reinforcement learning, where the interceptor and target policies are trained
   against each other to learn harder pursuit-evasion behavior.
+- Better target avoidance/evasion behavior: make the target's escape logic more
+  realistic and effective, for example by improving how it reacts to the
+  interceptor's predicted motion, how early it starts evasive action, and how
+  aggressively it trades speed versus maneuvering.
 - Stochastic interception modeling: instead of treating the intercept point as
   deterministic, model it as a distribution under uncertainty in target motion,
   sensing, and actuation. That could support risk-aware guidance, chance

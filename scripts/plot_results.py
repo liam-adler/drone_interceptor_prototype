@@ -330,7 +330,6 @@ def plot_average_overlay(
     metric_names = [
         "Avg Captures / Run",
         "Capture Time [s]",
-        "Min Distance [m]",
         "Avg Distance [m]",
     ]
     x_positions = list(range(len(metric_names)))
@@ -340,7 +339,7 @@ def plot_average_overlay(
         controller_key,
         avg_capture_count_per_run,
         capture_time,
-        min_distance,
+        _min_distance,
         mean_distance,
     ) in enumerate(
         summary_table
@@ -349,7 +348,6 @@ def plot_average_overlay(
         values = [
             avg_capture_count_per_run,
             capture_time,
-            min_distance,
             mean_distance,
         ]
         ax_metrics.bar(
