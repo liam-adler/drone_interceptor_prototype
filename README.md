@@ -200,9 +200,12 @@ Marker key used in the videos:
   predicted target trajectory over the optimization horizon.
 - Green sphere: filtered target estimate used by the controller. If it is not
   visible, it is usually inside the red target marker.
-- Yellow sphere: current intercept aim point.
-- Bright green sphere: capture/intercept point once the interceptor is within
-  the capture radius.
+- Yellow sphere: current intercept aim point in the baseline-controller clips.
+- Bright green sphere: capture/intercept point in the baseline-controller
+  clips once the interceptor is within the capture radius.
+- Light pink sphere: current intercept aim point in the MPC clip.
+- Cyan sphere: capture/intercept point in the MPC clip once the interceptor is
+  within the capture radius.
 
 ### Pure Pursuit
 
@@ -258,6 +261,32 @@ plot_results --results-dir results/drone_interceptor_average_runs
 ```
 
 ![Average controller comparison](docs/average_overlay_comparison.png)
+
+## Areas To Improve
+
+- Dynamics and simulation fidelity: replace the current simplified point-mass
+  behavior with a more realistic vehicle model, including better actuator
+  limits, latency, turn-rate constraints, and disturbance models such as wind
+  or model mismatch.
+- Filtering and state estimation: improve the estimator so it handles noisy and
+  maneuvering targets more robustly. Possible next steps include better process
+  models, adaptive noise tuning, multi-rate filtering, or moving beyond the
+  current basic Kalman-style setup when the target motion becomes strongly
+  nonlinear.
+- MPC quality and tuning: the current MPC works as a basic proof of concept,
+  but it still needs better tuning and formulation work. Useful improvements
+  could include a better target prediction model, improved cost weighting,
+  longer or adaptive horizons, terminal constraints/costs, warm-starting,
+  better numerical optimization, and explicit robustness against estimation
+  error and aggressive target maneuvers.
+- Alternative guidance/control approaches: add more advanced methods beyond the
+  current pursuit laws and MPC. One interesting direction would be adversarial
+  reinforcement learning, where the interceptor and target policies are trained
+  against each other to learn harder pursuit-evasion behavior.
+- Stochastic interception modeling: instead of treating the intercept point as
+  deterministic, model it as a distribution under uncertainty in target motion,
+  sensing, and actuation. That could support risk-aware guidance, chance
+  constraints in MPC, and better reasoning about probable capture regions.
 
 ## Pipeline Summary
 
@@ -391,7 +420,13 @@ python3 src/drone_interceptor/scripts/compare_results.py --results-dir results/d
 `run_experiment`
 
 - Purpose: launches predefined experiment configurations for repeatable runs.
+- Inputs: experiment selection, controller list, scenario/profile overrides,
+  seed range, and output directory settings.
+- Outputs: repeated run artifacts in the chosen results directory.
 
 `record_showcase`
 
 - Purpose: records showcase runs for demonstration assets.
+- Inputs: controller selection, launch overrides, recording duration, and an
+  output directory for saved videos.
+- Outputs: recorded showcase `.mp4` files.
