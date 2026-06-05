@@ -7,6 +7,12 @@ Note that there may be bugs and that the MPC is currently quite bad and untuned.
 
 ![Example interceptor](docs/Example_interceptor.png)
 
+In the `target_advantaged` setups, the target is intentionally given a modest
+edge over the interceptor through higher speed and stronger maneuvering limits.
+It also has evasive behavior: when the interceptor gets close enough, the
+target can react by trying to escape rather than continuing a passive path,
+which makes the interception problem meaningfully harder.
+
 ## How To Use The Package
 
 1. Source ROS 2 Humble.
