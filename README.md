@@ -269,7 +269,7 @@ plot_results --results-dir results/drone_interceptor_average_runs
 
 ![Average controller comparison](docs/average_overlay_comparison.png)
 
-## Areas To Improve
+## Areas To Be Improved
 
 - Dynamics and simulation fidelity: replace the current simplified point-mass
   behavior with a more realistic drone model, including latency, turn-rate
